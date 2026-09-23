@@ -2,6 +2,7 @@ package com.openmgmt.android
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,13 +10,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.openmgmt.android.ui.MainViewModel
 import com.openmgmt.android.ui.components.AppScaffold
 import com.openmgmt.android.ui.nav.Destination
-import com.openmgmt.android.ui.screens.PlaceholderPage
+import com.openmgmt.android.ui.screens.BoardScreen
+import com.openmgmt.android.ui.screens.DailyOpsScreen
+import com.openmgmt.android.ui.screens.DashboardScreen
+import com.openmgmt.android.ui.screens.OrganizationsScreen
+import com.openmgmt.android.ui.screens.ProjectsScreen
+import com.openmgmt.android.ui.screens.ScheduleScreen
+import com.openmgmt.android.ui.screens.SettingsScreen
 import com.openmgmt.android.ui.screens.SyncScreen
 import com.openmgmt.android.ui.screens.TaskListScreen
 import com.openmgmt.android.ui.theme.OpenMgmtTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -23,9 +33,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleOAuthRedirect(intent)
+
+        val app = application as OpenMgmtApp
+        val viewModel = ViewModelProvider(
+            this,
+            MainViewModel.Factory(app.repository),
+        )[MainViewModel::class.java]
+
         setContent {
             OpenMgmtTheme {
-                val app = application as OpenMgmtApp
                 var current by remember { mutableStateOf<Destination>(Destination.Dashboard) }
 
                 AppScaffold(
@@ -34,17 +50,21 @@ class MainActivity : ComponentActivity() {
                     onRefresh = { /* TODO: refresh current page data */ },
                 ) {
                     when (current) {
-                        Destination.Dashboard -> PlaceholderPage("Dashboard")
-                        Destination.DailyOps -> PlaceholderPage("Daily Operations")
+                        Destination.Dashboard -> DashboardScreen(
+                            viewModel = viewModel,
+                            onNavigate = { current = it },
+                        )
+                        Destination.DailyOps -> DailyOpsScreen(viewModel)
                         Destination.Tasks -> TaskListScreen(
+                            viewModel = viewModel,
                             onOpenSync = { current = Destination.Sync },
                         )
-                        Destination.Schedule -> PlaceholderPage("Schedule")
-                        Destination.Projects -> PlaceholderPage("Projects")
-                        Destination.Organizations -> PlaceholderPage("Organizations")
-                        Destination.Board -> PlaceholderPage("Board")
+                        Destination.Schedule -> ScheduleScreen(viewModel)
+                        Destination.Projects -> ProjectsScreen(viewModel)
+                        Destination.Organizations -> OrganizationsScreen(viewModel)
+                        Destination.Board -> BoardScreen(viewModel)
                         Destination.Sync -> SyncScreen(app)
-                        Destination.Settings -> PlaceholderPage("Settings")
+                        Destination.Settings -> SettingsScreen(app)
                     }
                 }
             }
@@ -65,7 +85,7 @@ class MainActivity : ComponentActivity() {
                 runCatching {
                     (application as OpenMgmtApp).authManager.handleRedirect(uri)
                 }.onFailure {
-                    android.util.Log.w("OpenMGMT", "OAuth redirect failed", it)
+                    Log.w("OpenMGMT", "OAuth redirect failed", it)
                 }
             }
         }
