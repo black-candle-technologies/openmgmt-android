@@ -22,12 +22,14 @@
             </intent-filter>
 
             <!-- OAuth redirect: com.openmgmt.android:/oauth2/callback
-                 (RFC 8252 custom-scheme redirect for native apps). -->
+                 (RFC 8252 §7.1 custom-scheme redirect: scheme only, no
+                 host. Must match OAuthConfig.redirectUri exactly, or the
+                 system will not route the redirect back to the app.) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.openmgmt.android" android:host="oauth2" android:path="/callback" />
+                <data android:scheme="com.openmgmt.android" android:path="/oauth2/callback" />
             </intent-filter>
         </activity>
     </application>

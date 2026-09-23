@@ -78,7 +78,9 @@ class MainActivity : ComponentActivity() {
 
     private fun handleOAuthRedirect(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme == "com.openmgmt.android" && uri.host == "oauth2") {
+        // Must match OAuthConfig.redirectUri exactly: com.openmgmt.android:/oauth2/callback
+        // (scheme only, no host — RFC 8252 §7.1).
+        if (uri.scheme == "com.openmgmt.android" && uri.path == "/oauth2/callback") {
             // Suspend: the token exchange runs on Dispatchers.IO. A failure
             // here is surfaced on the next Sync screen visit via isSignedIn().
             lifecycleScope.launch {
