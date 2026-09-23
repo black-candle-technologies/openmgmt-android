@@ -74,14 +74,14 @@ class SyncManager(
             if (!authManager.isSignedIn()) {
                 throw SyncException("Sign in to register this device")
             }
-            val client = OmgpClient(serverUrl, bearerToken = authManager.validAccessToken())
-            val registration = client.register(
+            val registration = OmgpClient(serverUrl).register(
                 RegisterRequest(
                     deviceId = deviceId,
                     deviceName = android.os.Build.MODEL ?: "Android device",
                     previousDeviceToken = previousToken,
                     userHint = credentials.userId,
-                )
+                ),
+                accountToken = authManager.validAccessToken(),
             )
             credentials.storeRegistration(
                 registration.deviceToken!!, registration.accountId, registration.userId,

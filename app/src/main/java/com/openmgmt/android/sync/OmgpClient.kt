@@ -13,8 +13,10 @@ import java.util.concurrent.TimeUnit
  * Minimal HTTP client for the OpenMGMT sync protocol (omgp/1).
  *
  * Endpoints:
- * - POST /omgp/v1/hello
- * - POST /omgp/v1/devices/register (Authorization: Bearer = OAuth access token)
+ * - POST /omgp/v1/hello (no auth)
+ * - POST /omgp/v1/devices/register (Authorization: Bearer = OAuth access
+ *   token; the only endpoint that sees the account token, and only at
+ *   registration time)
  * - POST /omgp/v1/sync/push (device token in the body's auth context)
  * - POST /omgp/v1/sync/pull (device token in the body's auth context)
  *
@@ -24,7 +26,6 @@ import java.util.concurrent.TimeUnit
  */
 class OmgpClient(
     private val baseUrl: String,
-    private val bearerToken: String? = null,
     timeoutSeconds: Long = 30,
 ) {
     private val json = Json {
@@ -39,7 +40,7 @@ class OmgpClient(
     private inline fun <reified Req, reified Res> post(
         path: String,
         body: Req,
-        withBearer: Boolean = false,
+        bearerToken: String? = null,
     ): Res {
         val payload = json.encodeToString(body)
             .toRequestBody("application/json".toMediaType())
@@ -47,7 +48,7 @@ class OmgpClient(
             .url(baseUrl.trimEnd('/') + path)
             .post(payload)
             .apply {
-                if (withBearer) bearerToken?.let { header("Authorization", "Bearer $it") }
+                bearerToken?.let { header("Authorization", "Bearer $it") }
             }
             .build()
         http.newCall(request).execute().use { response ->
@@ -66,9 +67,9 @@ class OmgpClient(
         return response
     }
 
-    /** Sends the account token; only registration needs it. */
-    fun register(request: RegisterRequest): RegisterResponse {
-        val response: RegisterResponse = post("/omgp/v1/devices/register", request, withBearer = true)
+    fun register(request: RegisterRequest, accountToken: String): RegisterResponse {
+        val response: RegisterResponse =
+            post("/omgp/v1/devices/register", request, bearerToken = accountToken)
         checkError(response.error)
         if (!response.accepted || response.deviceToken.isNullOrEmpty()) {
             throw SyncException("Device registration was not accepted")
