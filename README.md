@@ -12,12 +12,17 @@ Scaffold. The app is under active development.
 
 - **Sync**: the app speaks the OpenMGMT sync protocol (`omgp/1`) against the
   sync server. Device registration is gated on a Black Candle account:
-  the app runs the native OAuth flow (system browser, PKCE S256, loopback
-  callback) against `auth.blackcandletech.com`, then registers the device
-  with the access token as a Bearer <redacted> Subsequent syncs use the device
-  token issued at registration.
-- **Storage**: local-first. The on-device database is the source of truth;
-  sync pushes and pulls event batches.
+  the app runs the native OAuth flow (system browser, PKCE S256,
+  custom-scheme redirect) against `auth.blackcandletech.com`, then registers
+  the device with the access token as its Bearer credential. Subsequent syncs
+  use the device token issued at registration. Signing out drops the device
+  registration; the next sign-in registers a fresh device and re-sends all
+  local data.
+- **Storage**: local-first. The on-device database is the source of truth.
+  Every change is logged as a sync event (the same entity JSON the desktop
+  app uses), and a sync pulls and replays remote events (last write wins in
+  server order), then pushes local ones. Nothing is hard-deleted: tasks are
+  canceled and projects/organizations archived, as on desktop.
 - **Server**: production sync server lives at
   `https://openmgmt.blackcandletech.com`. See the
   [sync protocol docs](https://github.com/black-candle-technologies/openmgmt/blob/main/docs/OPENMGMT_PROTOCOL.md)

@@ -8,18 +8,25 @@ import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.TaskEntity
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainViewModel(private val repository: MainRepository) : ViewModel() {
 
-    val tasks = repository.tasks.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val openTasks = repository.openTasks.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val openTaskCount = repository.openTaskCount.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     val projects = repository.projects.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val activeProjectCount = repository.activeProjectCount.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     val organizations = repository.organizations.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val organizationCount = repository.organizationCount.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    /** Tasks in live projects; like the desktop, archived projects hide their tasks. */
+    val tasks = combine(repository.tasks, repository.projects) { tasks, projects ->
+        val live = projects.mapTo(HashSet()) { it.id }
+        tasks.filter { it.projectId == null || it.projectId in live }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Local changes not yet pushed to the sync server. */
+    val pendingChangeCount = repository.pendingChangeCount
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     fun saveTask(task: TaskEntity) = viewModelScope.launch { repository.saveTask(task) }
     fun setTaskStatus(task: TaskEntity, status: String) =
@@ -33,8 +40,10 @@ class MainViewModel(private val repository: MainRepository) : ViewModel() {
         viewModelScope.launch { repository.saveOrganization(organization) }
     fun deleteOrganization(id: String) = viewModelScope.launch { repository.deleteOrganization(id) }
 
-    fun projectName(id: String?): String? =
-        projects.value.firstOrNull { it.id == id }?.name
+    /** Project id → name, observable so task cards update when projects load. */
+    val projectNames = repository.projects
+        .map { list -> list.associate { it.id to it.name } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     class Factory(private val repository: MainRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

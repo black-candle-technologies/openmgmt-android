@@ -2,11 +2,21 @@ package com.openmgmt.android.sync
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
-/** Sync protocol version spoken by the server. */
+/**
+ * OpenMGMT sync protocol (omgp/1) messages, mirroring
+ * openmgmt-protocol (crates/openmgmt-protocol/src/{sync,auth,error}.rs).
+ */
 const val PROTOCOL_VERSION = "omgp/1"
 
-/** POST /omgp/v1/hello */
+@Serializable
+data class ProtocolError(
+    val code: String,
+    val message: String,
+    val retryable: Boolean = false,
+)
+
 @Serializable
 data class HelloRequest(
     @SerialName("protocol_version") val protocolVersion: String = PROTOCOL_VERSION,
@@ -15,12 +25,21 @@ data class HelloRequest(
     @SerialName("device_id") val deviceId: String? = null,
 )
 
-/** POST /omgp/v1/devices/register */
+@Serializable
+data class HelloResponse(
+    @SerialName("protocol_version") val protocolVersion: String,
+    @SerialName("server_name") val serverName: String = "",
+    @SerialName("server_version") val serverVersion: String? = null,
+    val compatible: Boolean,
+    val error: ProtocolError? = null,
+)
+
 @Serializable
 data class RegisterRequest(
     @SerialName("protocol_version") val protocolVersion: String = PROTOCOL_VERSION,
     @SerialName("device_id") val deviceId: String,
     @SerialName("device_name") val deviceName: String,
+    /** Proof of possession when re-registering an existing device id. */
     @SerialName("previous_device_token") val previousDeviceToken: String? = null,
     @SerialName("user_hint") val userHint: String? = null,
 )
@@ -35,40 +54,63 @@ data class RegisterResponse(
 )
 
 @Serializable
-data class ProtocolError(
-    val code: String,
-    val message: String,
-    val retryable: Boolean = false,
+data class AuthContext(
+    @SerialName("account_id") val accountId: String?,
+    @SerialName("user_id") val userId: String?,
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_token") val deviceToken: String?,
 )
 
-/** POST /omgp/v1/sync/push and /omgp/v1/sync/pull share the event envelope. */
 @Serializable
 data class SyncEvent(
-    val id: String,
+    @SerialName("event_id") val eventId: String,
     @SerialName("device_id") val deviceId: String,
-    val kind: String,
-    val payload: String,
+    @SerialName("actor_user_id") val actorUserId: String? = null,
+    @SerialName("target_user_id") val targetUserId: String? = null,
+    @SerialName("workspace_id") val workspaceId: String? = null,
+    val sequence: Long,
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String,
+    val operation: String,
+    @SerialName("payload_json") val payloadJson: JsonObject,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("synced_at") val syncedAt: String? = null,
 )
 
 @Serializable
 data class PushRequest(
     @SerialName("protocol_version") val protocolVersion: String = PROTOCOL_VERSION,
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_token") val deviceToken: String,
-    val events: List<SyncEvent> = emptyList(),
+    val auth: AuthContext,
+    @SerialName("base_checkpoint") val baseCheckpoint: String?,
+    val events: List<SyncEvent>,
+)
+
+@Serializable
+data class RejectedSyncEvent(
+    @SerialName("event_id") val eventId: String,
+    val error: ProtocolError,
+)
+
+@Serializable
+data class PushResponse(
+    @SerialName("accepted_event_ids") val acceptedEventIds: List<String> = emptyList(),
+    @SerialName("rejected_events") val rejectedEvents: List<RejectedSyncEvent> = emptyList(),
+    @SerialName("server_checkpoint") val serverCheckpoint: String = "",
+    val error: ProtocolError? = null,
 )
 
 @Serializable
 data class PullRequest(
     @SerialName("protocol_version") val protocolVersion: String = PROTOCOL_VERSION,
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_token") val deviceToken: String,
-    @SerialName("since_cursor") val sinceCursor: Long = 0,
+    val auth: AuthContext,
+    @SerialName("after_checkpoint") val afterCheckpoint: String?,
+    val limit: Int? = null,
 )
 
 @Serializable
 data class PullResponse(
     val events: List<SyncEvent> = emptyList(),
-    @SerialName("next_cursor") val nextCursor: Long = 0,
+    @SerialName("server_checkpoint") val serverCheckpoint: String = "",
+    @SerialName("has_more") val hasMore: Boolean = false,
+    val error: ProtocolError? = null,
 )
