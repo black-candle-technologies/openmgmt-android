@@ -41,13 +41,14 @@ class SyncManager(
         // validAccessToken refreshes the OAuth token first when expired.
         if (deviceToken == null) {
             val accountToken = authManager.validAccessToken()
-            val client = OmgpClient(serverUrl, bearerToken = accountToken)
+            val client = OmgpClient(serverUrl)
             client.hello(HelloRequest(deviceId = deviceId))
             val registration = client.register(
                 RegisterRequest(
                     deviceId = deviceId,
                     deviceName = android.os.Build.MODEL ?: "Android device",
-                )
+                ),
+                accountToken = accountToken,
             )
             if (!registration.accepted || registration.deviceToken.isNullOrEmpty()) {
                 throw SyncException(
