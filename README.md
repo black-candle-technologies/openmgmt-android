@@ -28,9 +28,17 @@ Scaffold. The app is under active development.
 Prerequisites: Android Studio (Hedgehog or newer), JDK 17, Android SDK 34.
 
 ```bash
-# open in Android Studio, or from the command line:
+# generate the Gradle wrapper jar once (not checked in):
+gradle wrapper
 ./gradlew assembleDebug
 ```
+
+Or just open the project in Android Studio and press Run.
+
+> **Note:** the OAuth redirect `com.openmgmt.android:/oauth2/callback` must be
+> registered in the client's metadata document at
+> `https://blackcandletech.com/oauth/openmgmt-android.json` before sign-in
+> will succeed against `auth.blackcandletech.com`.
 
 ## Related repositories
 
