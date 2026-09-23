@@ -8,6 +8,7 @@ import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.TaskEntity
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -33,8 +34,10 @@ class MainViewModel(private val repository: MainRepository) : ViewModel() {
         viewModelScope.launch { repository.saveOrganization(organization) }
     fun deleteOrganization(id: String) = viewModelScope.launch { repository.deleteOrganization(id) }
 
-    fun projectName(id: String?): String? =
-        projects.value.firstOrNull { it.id == id }?.name
+    /** Project id → name, observable so task cards update when projects load. */
+    val projectNames = repository.projects
+        .map { list -> list.associate { it.id to it.name } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     class Factory(private val repository: MainRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

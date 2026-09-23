@@ -21,12 +21,17 @@ class SyncManager(
     private val context: Context,
     private val database: AppDatabase,
     private val authManager: AuthManager,
-    private val serverUrl: String = "https://openmgmt.blackcandletech.com",
+    val serverUrl: String = "https://openmgmt.blackcandletech.com",
 ) {
     data class SyncResult(
         val pushed: Int,
         val pulled: Int,
     )
+
+    /** True once the server has issued this device a token (survives sign-out). */
+    fun isRegistered(): Boolean =
+        context.getSharedPreferences("openmgmt_sync", Context.MODE_PRIVATE)
+            .contains("device_token")
 
     suspend fun syncOnce(): SyncResult = withContext(Dispatchers.IO) {
         val prefs = context.getSharedPreferences("openmgmt_sync", Context.MODE_PRIVATE)
