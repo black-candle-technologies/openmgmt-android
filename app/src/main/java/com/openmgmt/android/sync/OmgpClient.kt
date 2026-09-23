@@ -38,7 +38,7 @@ class OmgpClient(
             .url(baseUrl.trimEnd('/') + path)
             .post(payload)
             .apply {
-                bearerToken?.let { header("Authorization", "Bearer <redacted>") }
+                bearerToken?.let { header("Authorization", "Bearer $it") }
             }
             .build()
         http.newCall(request).execute().use { response ->
