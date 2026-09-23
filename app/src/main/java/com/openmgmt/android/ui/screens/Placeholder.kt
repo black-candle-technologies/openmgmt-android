@@ -4,23 +4,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Tasks page: mirrors the desktop Tasks page layout (task table → cards here). */
+/**
+ * Placeholder content card used until each page is implemented.
+ * Desktop pages live in apps/desktop/ui/src/app/pages/.
+ */
 @Composable
-fun TaskListScreen(onOpenSync: () -> Unit) {
+fun PlaceholderPage(title: String, hint: String = "Coming soon.") {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.Start,
     ) {
         Card(
             colors = CardDefaults.cardColors(
@@ -29,14 +29,13 @@ fun TaskListScreen(onOpenSync: () -> Unit) {
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("No tasks yet.", style = MaterialTheme.typography.titleLarge)
+                Text(title, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Connect sync to pull your tasks from your other devices.",
+                    hint,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        Button(onClick = onOpenSync) { Text("Sync settings") }
     }
 }

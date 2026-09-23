@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,47 +20,63 @@ import androidx.compose.ui.unit.dp
 import com.openmgmt.android.OpenMgmtApp
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Sync page: mirrors the desktop Sync page (sign in / sync now / sign out). */
 @Composable
-fun SyncScreen(app: OpenMgmtApp, onBack: () -> Unit) {
+fun SyncScreen(app: OpenMgmtApp) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }
     val signedIn = remember(status) { app.authManager.isSignedIn() }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Sync") }) },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
-            Text(if (signedIn) "Signed in with your Black Candle account." else "Not signed in.")
-            if (status.isNotEmpty()) Text(status)
-
-            Button(onClick = {
-                scope.launch {
-                    status = "Waiting for browser…"
-                    runCatching { app.authManager.beginSignIn() }
-                        .onSuccess { status = "Signed in." }
-                        .onFailure { status = "Sign-in failed: ${it.message}" }
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    if (signedIn) "Signed in with your Black Candle account."
+                    else "Not signed in.",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                if (status.isNotEmpty()) {
+                    Text(
+                        status,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-            }) { Text("Sign in") }
-
-            Button(onClick = {
-                scope.launch {
-                    status = "Syncing…"
-                    runCatching { app.syncManager.syncOnce() }
-                        .onSuccess { status = "Synced: ${it.pushed} pushed, ${it.pulled} pulled." }
-                        .onFailure { status = "Sync failed: ${it.message}" }
-                }
-            }) { Text("Sync now") }
-
-            Button(onClick = {
-                app.authManager.signOut()
-                status = "Signed out."
-            }) { Text("Sign out") }
-
-            Button(onClick = onBack) { Text("Back") }
+            }
         }
+
+        Button(onClick = {
+            scope.launch {
+                status = "Waiting for browser…"
+                runCatching { app.authManager.beginSignIn() }
+                    .onSuccess { status = "Signed in. Your next sync will register this device." }
+                    .onFailure { status = "Sign-in failed: ${it.message}" }
+            }
+        }) { Text("Sign in") }
+
+        Button(onClick = {
+            scope.launch {
+                status = "Syncing…"
+                runCatching { app.syncManager.syncOnce() }
+                    .onSuccess { status = "Synced: ${it.pushed} pushed, ${it.pulled} pulled." }
+                    .onFailure { status = "Sync failed: ${it.message}" }
+            }
+        }) { Text("Sync now") }
+
+        Button(onClick = {
+            app.authManager.signOut()
+            status = "Signed out."
+        }) { Text("Sign out") }
     }
 }
