@@ -38,9 +38,9 @@ class SyncManager(
 
         // Registration needs the account Bearer <redacted> the first time (or after
         // the server rejects a stale device token with a re-register signal).
+        // validAccessToken refreshes the OAuth token first when expired.
         if (deviceToken == null) {
-            val accountToken = authManager.accessToken()
-                ?: throw SyncException("Sign in with your Black Candle account first")
+            val accountToken = authManager.validAccessToken()
             val client = OmgpClient(serverUrl, bearerToken = accountToken)
             client.hello(HelloRequest(deviceId = deviceId))
             val registration = client.register(
