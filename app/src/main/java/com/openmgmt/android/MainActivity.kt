@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import com.openmgmt.android.ui.components.AppScaffold
 import com.openmgmt.android.ui.nav.Destination
 import com.openmgmt.android.ui.screens.PlaceholderPage
@@ -58,7 +59,15 @@ class MainActivity : ComponentActivity() {
     private fun handleOAuthRedirect(intent: Intent?) {
         val uri = intent?.data ?: return
         if (uri.scheme == "com.openmgmt.android" && uri.host == "oauth2") {
-            (application as OpenMgmtApp).authManager.handleRedirect(uri)
+            // Suspend: the token exchange runs on Dispatchers.IO. A failure
+            // here is surfaced on the next Sync screen visit via isSignedIn().
+            lifecycleScope.launch {
+                runCatching {
+                    (application as OpenMgmtApp).authManager.handleRedirect(uri)
+                }.onFailure {
+                    android.util.Log.w("OpenMGMT", "OAuth redirect failed", it)
+                }
+            }
         }
     }
 }
