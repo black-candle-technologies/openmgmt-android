@@ -116,7 +116,8 @@ fun TaskActionsHost(
             create = { editing = it to true },
             toggleDone = { task ->
                 if (task.status == TaskStatus.DONE) {
-                    viewModel.setTaskStatus(task, TaskStatus.OPEN)
+                    // Reopened work goes back to "ready" rather than the inbox.
+                    viewModel.setTaskStatus(task, TaskStatus.READY)
                 } else {
                     viewModel.setTaskStatus(task, TaskStatus.DONE)
                     snackbarHostState.showUndo(scope, "Completed “${task.title}”") {
@@ -207,7 +208,7 @@ fun TaskEditorSheet(
 
             FieldLabel("Status")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TaskStatus.all.forEach { option ->
+                TaskStatus.selectable.forEach { option ->
                     FilterChip(
                         selected = status == option,
                         onClick = { status = option },
@@ -339,10 +340,11 @@ private fun ProjectPicker(
         OutlinedButton(
             onClick = { open = true },
             modifier = Modifier.fillMaxWidth(),
-            enabled = projects.isNotEmpty() || selectedId != null,
+            enabled = projects.isNotEmpty(),
         ) {
             Text(
-                selected?.name ?: if (projects.isEmpty()) "No projects yet" else "No project",
+                // Unassigned tasks are filed in Inbox when saved.
+                selected?.name ?: "Inbox",
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -351,10 +353,6 @@ private fun ProjectPicker(
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text("No project") },
-                onClick = { onSelect(null); open = false },
-            )
             projects.forEach { project ->
                 DropdownMenuItem(
                     text = { Text(project.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },

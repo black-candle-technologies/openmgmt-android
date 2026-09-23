@@ -247,17 +247,13 @@ fun Badge(label: String, tone: MetricTone = MetricTone.Neutral, modifier: Modifi
     }
 }
 
-fun statusLabel(status: String): String = when (status) {
-    TaskStatus.OPEN -> "Open"
-    TaskStatus.IN_PROGRESS -> "In progress"
-    TaskStatus.BLOCKED -> "Blocked"
-    TaskStatus.DONE -> "Done"
-    else -> status.replace('_', ' ').replaceFirstChar { it.uppercase() }
-}
+/** Human label for a status, like the desktop's `humanize` ("in_progress" → "In progress"). */
+fun statusLabel(status: String): String =
+    status.replace('_', ' ').replaceFirstChar { it.uppercase() }
 
 fun statusTone(status: String): MetricTone = when (status) {
     TaskStatus.IN_PROGRESS -> MetricTone.Accent
-    TaskStatus.BLOCKED -> MetricTone.Caution
+    TaskStatus.BLOCKED, TaskStatus.WAITING -> MetricTone.Caution
     TaskStatus.DONE -> MetricTone.Success
     else -> MetricTone.Neutral
 }

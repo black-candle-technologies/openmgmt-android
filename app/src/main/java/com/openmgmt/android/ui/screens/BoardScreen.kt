@@ -22,11 +22,18 @@ import com.openmgmt.android.ui.components.LocalTaskActions
 import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.TaskCard
 
+/** A board column groups statuses; new tasks in it get [newStatus]. */
+private class BoardColumn(val key: String, val label: String, val statuses: Set<String>, val newStatus: String)
+
 private val BOARD_COLUMNS = listOf(
-    TaskStatus.OPEN to "To do",
-    TaskStatus.IN_PROGRESS to "In progress",
-    TaskStatus.BLOCKED to "Blocked",
-    TaskStatus.DONE to "Done",
+    BoardColumn(
+        "todo", "To do",
+        setOf(TaskStatus.INBOX, TaskStatus.BACKLOG, TaskStatus.SCHEDULED, TaskStatus.READY),
+        TaskStatus.INBOX,
+    ),
+    BoardColumn("in_progress", "In progress", setOf(TaskStatus.IN_PROGRESS), TaskStatus.IN_PROGRESS),
+    BoardColumn("blocked", "Blocked", setOf(TaskStatus.BLOCKED, TaskStatus.WAITING), TaskStatus.BLOCKED),
+    BoardColumn("done", "Done", setOf(TaskStatus.DONE), TaskStatus.DONE),
 )
 
 /** Board: tasks grouped into status columns, like the desktop TV board. */
@@ -35,21 +42,19 @@ fun BoardScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
     val actions = LocalTaskActions.current
-    var column by rememberSaveable { mutableStateOf(TaskStatus.OPEN) }
-    val columnLabel = BOARD_COLUMNS.first { it.first == column }.second
+    var columnKey by rememberSaveable { mutableStateOf(BOARD_COLUMNS.first().key) }
+    val column = BOARD_COLUMNS.first { it.key == columnKey }
 
-    ScreenFab("New task") { actions.create(TaskEntity(title = "", status = column)) }
+    ScreenFab("New task") { actions.create(TaskEntity(title = "", status = column.newStatus)) }
 
     Column(Modifier.fillMaxSize()) {
         FilterRow(
-            options = BOARD_COLUMNS.map { it.first },
+            options = BOARD_COLUMNS,
             selected = column,
-            label = { status ->
-                "${BOARD_COLUMNS.first { it.first == status }.second} ${tasks.count { it.status == status }}"
-            },
-            onSelect = { column = it },
+            label = { c -> "${c.label} ${tasks.count { it.status in c.statuses }}" },
+            onSelect = { columnKey = it.key },
         )
-        val visible = tasks.filter { it.status == column }.sortedBy { it.dueAt ?: Long.MAX_VALUE }
+        val visible = tasks.filter { it.status in column.statuses }.sortedBy { it.dueAt ?: Long.MAX_VALUE }
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
@@ -57,7 +62,7 @@ fun BoardScreen(viewModel: MainViewModel) {
         ) {
             if (visible.isEmpty()) {
                 item(key = "empty") {
-                    EmptyState("Nothing in $columnLabel", "Tap a task to change its status.")
+                    EmptyState("Nothing in ${column.label}", "Tap a task to change its status.")
                 }
             } else {
                 items(visible, key = { it.id }) { task ->
@@ -66,7 +71,8 @@ fun BoardScreen(viewModel: MainViewModel) {
                         projectName = projectNames[task.projectId],
                         onToggleDone = { actions.toggleDone(task) },
                         onClick = { actions.edit(task) },
-                        showStatus = false,
+                        // Grouped columns show which status each card is in.
+                        showStatus = column.statuses.size > 1,
                         modifier = Modifier.animateItem(),
                     )
                 }

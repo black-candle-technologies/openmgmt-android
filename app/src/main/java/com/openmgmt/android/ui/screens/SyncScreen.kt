@@ -38,7 +38,7 @@ import java.time.format.DateTimeFormatter
 
 /** Sync page: mirrors the desktop Sync page (sign in / sync now / sign out). */
 @Composable
-fun SyncScreen(sync: SyncViewModel) {
+fun SyncScreen(sync: SyncViewModel, pendingChanges: Int) {
     val state by sync.state.collectAsState()
     val busy = state.activity != null
 
@@ -66,6 +66,11 @@ fun SyncScreen(sync: SyncViewModel) {
                 label = "Last sync",
                 value = state.lastSyncedAt?.let(::formatTime) ?: "Not this session",
                 ok = state.lastSyncedAt != null,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            StatusRow(
+                label = "Changes to send",
+                value = if (pendingChanges == 0) "None" else pendingChanges.toString(),
             )
         }
 

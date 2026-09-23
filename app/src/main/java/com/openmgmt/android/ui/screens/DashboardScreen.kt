@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
+import com.openmgmt.android.data.ProjectStatus
 import com.openmgmt.android.data.TaskEntity
 import com.openmgmt.android.data.TaskStatus
 import com.openmgmt.android.ui.MainViewModel
@@ -62,8 +63,8 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
     val open = tasks.filter { it.status != TaskStatus.DONE }
     val overdue = open.filter { isOverdue(it) }
     val inProgress = open.filter { it.status == TaskStatus.IN_PROGRESS }
-    val blocked = open.filter { it.status == TaskStatus.BLOCKED }
-    val activeProjects = projects.filter { it.status == "active" }
+    val blocked = open.filter { it.status == TaskStatus.BLOCKED || it.status == TaskStatus.WAITING }
+    val activeProjects = projects.filter { it.status == ProjectStatus.ACTIVE }
     // Most urgent first: overdue, then in progress, then the next due dates.
     val attention = (overdue.sortedBy { it.dueAt } + inProgress +
         open.filter { it.dueAt != null }.sortedBy { it.dueAt })
@@ -89,7 +90,7 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
                         if (overdue.isEmpty()) MetricTone.Neutral else MetricTone.Danger,
                     ) { onNavigate(Destination.Schedule) }
                     MetricCard(
-                        "Blocked", blocked.size.toString(), Modifier.weight(1f),
+                        "Blocked / waiting", blocked.size.toString(), Modifier.weight(1f),
                         if (blocked.isEmpty()) MetricTone.Neutral else MetricTone.Caution,
                     ) { onNavigate(Destination.Board) }
                 }

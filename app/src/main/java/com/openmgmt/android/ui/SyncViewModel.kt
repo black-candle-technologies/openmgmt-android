@@ -78,20 +78,37 @@ class SyncViewModel(private val app: OpenMgmtApp) : ViewModel() {
                 it.copy(
                     activity = null,
                     message = result.fold(
-                        onSuccess = { r -> "Synced: ${r.pushed} pushed, ${r.pulled} pulled." },
+                        onSuccess = { r ->
+                            buildString {
+                                append("Synced: sent ${r.pushed}, received ${r.applied}.")
+                                if (r.rejected > 0) append(" ${r.rejected} changes were rejected by the server.")
+                            }
+                        },
                         onFailure = { e -> "Sync failed: ${e.message}" },
                     ),
-                    isError = result.isFailure,
+                    isError = result.isFailure || (result.getOrNull()?.rejected ?: 0) > 0,
                     lastSyncedAt = if (result.isSuccess) System.currentTimeMillis() else it.lastSyncedAt,
                 )
             }
         }
     }
 
+    /** Signs out and disconnects this device, so nothing syncs until the next sign-in. */
     fun signOut() {
+        if (_state.value.activity != null) return
         app.authManager.signOut()
-        refreshAccount()
-        _state.update { it.copy(activity = null, message = "Signed out.", isError = false) }
+        viewModelScope.launch {
+            app.syncManager.disconnect()
+            refreshAccount()
+            _state.update {
+                it.copy(
+                    activity = null,
+                    message = "Signed out. This device won't sync until you sign in again.",
+                    isError = false,
+                    lastSyncedAt = null,
+                )
+            }
+        }
     }
 
     class Factory(private val app: OpenMgmtApp) : ViewModelProvider.Factory {

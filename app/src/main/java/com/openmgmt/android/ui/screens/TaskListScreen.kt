@@ -24,14 +24,12 @@ import com.openmgmt.android.ui.components.EmptyState
 import com.openmgmt.android.ui.components.LocalTaskActions
 import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.TaskCard
+import com.openmgmt.android.ui.components.statusLabel
 
-private enum class TaskFilter(val label: String, val status: String?) {
-    ALL("All", null),
-    OPEN("Open", TaskStatus.OPEN),
-    IN_PROGRESS("In progress", TaskStatus.IN_PROGRESS),
-    BLOCKED("Blocked", TaskStatus.BLOCKED),
-    DONE("Done", TaskStatus.DONE),
-}
+/** Filter chips: All, then each status (null = all). */
+private val TASK_FILTERS: List<String?> = listOf(null) + TaskStatus.selectable
+
+private fun filterLabel(status: String?) = status?.let(::statusLabel) ?: "All"
 
 /** Full task list with filters and a new-task action. */
 @Composable
@@ -39,12 +37,12 @@ fun TaskListScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
     val actions = LocalTaskActions.current
-    var filter by rememberSaveable { mutableStateOf(TaskFilter.ALL) }
+    var filter by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Stable order (edits and check-offs don't make cards jump): open work
     // before done, then soonest due, then title.
     val visible = tasks
-        .filter { filter.status == null || it.status == filter.status }
+        .filter { filter == null || it.status == filter }
         .sortedWith(
             compareBy<TaskEntity>(
                 { it.status == TaskStatus.DONE },
@@ -54,16 +52,16 @@ fun TaskListScreen(viewModel: MainViewModel) {
         )
 
     ScreenFab("New task") {
-        actions.create(TaskEntity(title = "", status = filter.status ?: TaskStatus.OPEN))
+        actions.create(TaskEntity(title = "", status = filter ?: TaskStatus.INBOX))
     }
 
     Column(Modifier.fillMaxSize()) {
         FilterRow(
-            options = TaskFilter.entries,
+            options = TASK_FILTERS,
             selected = filter,
-            label = { entry ->
-                val count = if (entry.status == null) tasks.size else tasks.count { it.status == entry.status }
-                "${entry.label} $count"
+            label = { status ->
+                val count = if (status == null) tasks.size else tasks.count { it.status == status }
+                "${filterLabel(status)} $count"
             },
             onSelect = { filter = it },
         )
@@ -75,7 +73,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
             if (visible.isEmpty()) {
                 item(key = "empty") {
                     EmptyState(
-                        if (tasks.isEmpty()) "No tasks yet" else "No ${filter.label.lowercase()} tasks",
+                        if (tasks.isEmpty()) "No tasks yet" else "No ${filterLabel(filter).lowercase()} tasks",
                         if (tasks.isEmpty()) "Tap New task to add your first one."
                         else "Nothing matches this filter.",
                     )
@@ -87,7 +85,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
                         projectName = projectNames[task.projectId],
                         onToggleDone = { actions.toggleDone(task) },
                         onClick = { actions.edit(task) },
-                        showStatus = filter.status == null,
+                        showStatus = filter == null,
                         modifier = Modifier.animateItem(),
                     )
                 }

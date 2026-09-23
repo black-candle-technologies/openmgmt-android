@@ -85,7 +85,10 @@ class MainActivity : ComponentActivity() {
                                 Destination.Projects -> ProjectsScreen(viewModel)
                                 Destination.Organizations -> OrganizationsScreen(viewModel)
                                 Destination.Board -> BoardScreen(viewModel)
-                                Destination.Sync -> SyncScreen(sync)
+                                Destination.Sync -> SyncScreen(
+                                    sync,
+                                    pendingChanges = viewModel.pendingChangeCount.collectAsState().value,
+                                )
                                 Destination.Settings -> SettingsScreen(
                                     sync,
                                     onOpenSync = { navigate(Destination.Sync) },

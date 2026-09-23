@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
+import com.openmgmt.android.data.ProjectStatus
 import com.openmgmt.android.data.TaskStatus
 import com.openmgmt.android.ui.MainViewModel
 import com.openmgmt.android.ui.components.Badge
@@ -59,9 +60,9 @@ import com.openmgmt.android.ui.components.showUndo
 
 /** Project statuses, matching the desktop app's ProjectStatus options. */
 private val PROJECT_STATUSES = listOf(
-    "active" to "Active",
-    "paused" to "Paused",
-    "completed" to "Completed",
+    ProjectStatus.ACTIVE to "Active",
+    ProjectStatus.PAUSED to "Paused",
+    ProjectStatus.COMPLETED to "Completed",
 )
 
 private fun projectStatusLabel(status: String) =
@@ -82,7 +83,7 @@ fun ProjectsScreen(viewModel: MainViewModel) {
     ScreenFab("New project") { showNew = true }
 
     // Active work first; the DAO already sorts by name within each group.
-    val sorted = projects.sortedBy { it.status != "active" }
+    val sorted = projects.sortedBy { it.status != ProjectStatus.ACTIVE }
     val orgNames = organizations.associate { it.id to it.name }
 
     LazyColumn(
@@ -105,7 +106,7 @@ fun ProjectsScreen(viewModel: MainViewModel) {
                         orgNames[project.organizationId],
                     ).joinToString(" · "),
                     badge = projectStatusLabel(project.status),
-                    badgeTone = if (project.status == "active") MetricTone.Success else MetricTone.Neutral,
+                    badgeTone = if (project.status == ProjectStatus.ACTIVE) MetricTone.Success else MetricTone.Neutral,
                     progress = if (projectTasks.isEmpty()) null
                     else doneCount.toFloat() / projectTasks.size,
                     onClick = { editingId = project.id },
@@ -292,12 +293,12 @@ private fun ProjectEditorDialog(
                 Box {
                     OutlinedButton(
                         onClick = { orgMenu = true },
-                        enabled = organizations.isNotEmpty() || orgId != null,
+                        enabled = organizations.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            organizations.firstOrNull { it.id == orgId }?.name
-                                ?: if (organizations.isEmpty()) "No organizations yet" else "No organization",
+                            // Projects without one are filed under Personal when saved.
+                            organizations.firstOrNull { it.id == orgId }?.name ?: "Personal",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -305,10 +306,6 @@ private fun ProjectEditorDialog(
                         Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
                     }
                     DropdownMenu(expanded = orgMenu, onDismissRequest = { orgMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("No organization") },
-                            onClick = { orgId = null; orgMenu = false },
-                        )
                         organizations.forEach { org ->
                             DropdownMenuItem(
                                 text = { Text(org.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },

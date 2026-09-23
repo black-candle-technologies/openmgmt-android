@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration (SDK path, signing, secrets)
+local.properties
+*.keystore
+*.jks
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+.kotlin/
+
+# OS
+.DS_Store
