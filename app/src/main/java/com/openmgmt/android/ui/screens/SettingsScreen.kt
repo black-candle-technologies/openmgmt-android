@@ -2,115 +2,74 @@ package com.openmgmt.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.BuildConfig
-import com.openmgmt.android.OpenMgmtApp
-import com.openmgmt.android.ui.components.PageHeader
+import com.openmgmt.android.ui.SyncViewModel
+import com.openmgmt.android.ui.components.LocalContentGutter
 import com.openmgmt.android.ui.components.Section
 
 /** Settings: account, sync server, and app info. */
 @Composable
-fun SettingsScreen(app: OpenMgmtApp) {
-    var signedIn by remember { mutableStateOf(app.authManager.isSignedIn()) }
+fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
+    val state by sync.state.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = LocalContentGutter.current, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        item {
-            PageHeader(
-                eyebrow = "OPERATIONS",
-                title = "Settings",
-                description = "Account, sync, and app preferences.",
-            )
-        }
-        item {
-            Section("Black Candle account") {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            if (signedIn) "Signed in" else "Not signed in",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            "Sign-in is required once so this device can register " +
-                                "with the sync server.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (signedIn) {
-                                OutlinedButton(onClick = {
-                                    app.authManager.signOut()
-                                    signedIn = false
-                                }) { Text("Sign out") }
-                            } else {
-                                Text(
-                                    "Use the Sync page to sign in.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Section("Sync server") {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            "https://openmgmt.blackcandletech.com",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            "Production sync server",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Section("About") {
-                Text(
-                    "OpenMGMT ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Section("Account") {
+            InfoCard {
+                StatusRow(
+                    label = "Black Candle account",
+                    value = if (state.signedIn) "Signed in" else "Not signed in",
+                    ok = state.signedIn,
                 )
+            }
+            if (state.signedIn) {
+                // Like the Sync page: no sign-out mid sign-in or mid sync.
+                OutlinedButton(
+                    onClick = sync::signOut,
+                    enabled = state.activity == null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Sign out")
+                }
+            } else {
+                OutlinedButton(onClick = onOpenSync, modifier = Modifier.fillMaxWidth()) {
+                    Text("Sign in on the Sync page")
+                }
+            }
+        }
+        Section("Sync server") {
+            InfoCard {
+                StatusRow(label = "Server", value = sync.serverUrl.removePrefix("https://"))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                StatusRow(
+                    label = "This device",
+                    value = if (state.registered) "Registered" else "Not registered",
+                    ok = state.registered,
+                )
+            }
+        }
+        Section("About") {
+            InfoCard {
+                StatusRow(label = "Version", value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             }
         }
     }

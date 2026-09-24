@@ -2,20 +2,18 @@ package com.openmgmt.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,56 +21,63 @@ import com.openmgmt.android.data.TaskEntity
 import com.openmgmt.android.data.TaskStatus
 import com.openmgmt.android.ui.MainViewModel
 import com.openmgmt.android.ui.components.EmptyState
-import com.openmgmt.android.ui.components.PageHeader
+import com.openmgmt.android.ui.components.LocalContentGutter
+import com.openmgmt.android.ui.components.LocalTaskActions
+import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.TaskCard
-import com.openmgmt.android.ui.components.TextInputDialog
+import com.openmgmt.android.ui.components.screenPadding
+import com.openmgmt.android.ui.components.statusLabel
 
-private enum class TaskFilter(val label: String) {
-    ALL("All"), OPEN("Open"), IN_PROGRESS("In progress"), DONE("Done")
-}
+/** Filter chips: All, then each status (null = all). */
+private val TASK_FILTERS: List<String?> = listOf(null) + TaskStatus.selectable
+
+private fun filterLabel(status: String?) = status?.let(::statusLabel) ?: "All"
 
 /** Full task list with filters and a new-task action. */
 @Composable
-fun TaskListScreen(viewModel: MainViewModel, onOpenSync: () -> Unit) {
+fun TaskListScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
-    var filter by remember { mutableStateOf(TaskFilter.ALL) }
-    var showNewTask by remember { mutableStateOf(false) }
+    val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
+    val actions = LocalTaskActions.current
+    var filter by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val visible = when (filter) {
-        TaskFilter.ALL -> tasks
-        TaskFilter.OPEN -> tasks.filter { it.status == TaskStatus.OPEN }
-        TaskFilter.IN_PROGRESS -> tasks.filter { it.status == TaskStatus.IN_PROGRESS }
-        TaskFilter.DONE -> tasks.filter { it.status == TaskStatus.DONE }
+    // Stable order (edits and check-offs don't make cards jump): open work
+    // before done, then soonest due, then title.
+    val visible = tasks
+        .filter { filter == null || it.status == filter }
+        .sortedWith(
+            compareBy<TaskEntity>(
+                { it.status == TaskStatus.DONE },
+                { it.dueAt ?: Long.MAX_VALUE },
+                { it.title.lowercase() },
+            )
+        )
+
+    ScreenFab("New task") {
+        actions.create(TaskEntity(title = "", status = filter ?: TaskStatus.INBOX))
     }
 
     Column(Modifier.fillMaxSize()) {
+        FilterRow(
+            options = TASK_FILTERS,
+            selected = filter,
+            label = { status ->
+                val count = if (status == null) tasks.size else tasks.count { it.status == status }
+                "${filterLabel(status)} $count"
+            },
+            onSelect = { filter = it },
+        )
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f),
+            contentPadding = screenPadding(hasFab = true, top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item {
-                PageHeader(
-                    eyebrow = "WORKSPACE",
-                    title = "Tasks",
-                    description = "Everything on your plate, synced across devices.",
-                )
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TaskFilter.entries.forEach { entry ->
-                        FilterChip(
-                            selected = filter == entry,
-                            onClick = { filter = entry },
-                            label = { Text(entry.label) },
-                        )
-                    }
-                }
-            }
             if (visible.isEmpty()) {
-                item {
+                item(key = "empty") {
                     EmptyState(
-                        "No tasks here",
-                        if (tasks.isEmpty()) "Create your first task to get started."
+                        if (tasks.isEmpty()) "No tasks yet" else "No ${filterLabel(filter).lowercase()} tasks",
+                        if (tasks.isEmpty()) "Tap New task to add your first one."
                         else "Nothing matches this filter.",
                     )
                 }
@@ -80,36 +85,37 @@ fun TaskListScreen(viewModel: MainViewModel, onOpenSync: () -> Unit) {
                 items(visible, key = { it.id }) { task ->
                     TaskCard(
                         task = task,
-                        projectName = viewModel.projectName(task.projectId),
-                        onToggleDone = {
-                            viewModel.setTaskStatus(
-                                task,
-                                if (task.status == TaskStatus.DONE) TaskStatus.OPEN else TaskStatus.DONE,
-                            )
-                        },
+                        projectName = projectNames[task.projectId],
+                        onToggleDone = { actions.toggleDone(task) },
+                        onClick = { actions.edit(task) },
+                        inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
+                        showStatus = filter == null,
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(onClick = { showNewTask = true }, modifier = Modifier.weight(1f)) {
-                Text("New task")
-            }
-            Button(onClick = onOpenSync, modifier = Modifier.weight(1f)) {
-                Text("Sync settings")
-            }
-        }
     }
+}
 
-    if (showNewTask) {
-        TextInputDialog(
-            title = "New task",
-            label = "Task title",
-            onDismiss = { showNewTask = false },
-            onConfirm = { viewModel.saveTask(TaskEntity(title = it)) },
-        )
+/** Horizontally scrolling chip row, so labels never get squeezed on narrow phones. */
+@Composable
+fun <T> FilterRow(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = LocalContentGutter.current, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(options) { option ->
+            FilterChip(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                label = { Text(label(option), maxLines = 1) },
+            )
+        }
     }
 }
