@@ -23,6 +23,7 @@ fun LazyListScope.taskSection(
     title: String,
     tasks: List<TaskEntity>,
     projectNames: Map<String, String>,
+    defaultProjectId: String?,
     actions: TaskActions,
     emptyTitle: String? = null,
     emptyHint: String = "",
@@ -49,6 +50,7 @@ fun LazyListScope.taskSection(
                 onToggleDone = { actions.toggleDone(task) },
                 onClick = { actions.edit(task) },
                 showStatus = showStatus,
+                inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
                 modifier = Modifier.animateItem(),
             )
         }

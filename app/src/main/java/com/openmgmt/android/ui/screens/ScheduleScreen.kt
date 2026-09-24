@@ -25,6 +25,7 @@ import com.openmgmt.android.ui.components.startOfToday
 fun ScheduleScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
 
     val open = tasks.filter { it.status != TaskStatus.DONE }
@@ -57,7 +58,7 @@ fun ScheduleScreen(viewModel: MainViewModel) {
         // the rest only appear when they have tasks.
         taskSection(
             key = "overdue", title = "Overdue", tasks = overdue,
-            projectNames = projectNames, actions = actions,
+            projectNames = projectNames, defaultProjectId = defaultProjectId, actions = actions,
             emptyTitle = if (open.isEmpty()) null else "Nothing overdue",
             emptyHint = "You're caught up.",
             titleColor = overdueColor,
@@ -65,21 +66,21 @@ fun ScheduleScreen(viewModel: MainViewModel) {
         )
         taskSection(
             key = "today", title = "Today", tasks = todayTasks,
-            projectNames = projectNames, actions = actions,
+            projectNames = projectNames, defaultProjectId = defaultProjectId, actions = actions,
             emptyTitle = if (open.isEmpty()) null else "Nothing due today",
             emptyHint = "The day is yours.",
         )
         taskSection(
             key = "week", title = "Next 7 days", tasks = thisWeek,
-            projectNames = projectNames, actions = actions,
+            projectNames = projectNames, defaultProjectId = defaultProjectId, actions = actions,
         )
         taskSection(
             key = "later", title = "Later", tasks = later,
-            projectNames = projectNames, actions = actions,
+            projectNames = projectNames, defaultProjectId = defaultProjectId, actions = actions,
         )
         taskSection(
             key = "unscheduled", title = "Unscheduled", tasks = unscheduled,
-            projectNames = projectNames, actions = actions,
+            projectNames = projectNames, defaultProjectId = defaultProjectId, actions = actions,
         )
     }
 }
