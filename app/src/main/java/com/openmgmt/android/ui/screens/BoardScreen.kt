@@ -41,6 +41,7 @@ private val BOARD_COLUMNS = listOf(
 fun BoardScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
     var columnKey by rememberSaveable { mutableStateOf(BOARD_COLUMNS.first().key) }
     val column = BOARD_COLUMNS.first { it.key == columnKey }
@@ -71,6 +72,7 @@ fun BoardScreen(viewModel: MainViewModel) {
                         projectName = projectNames[task.projectId],
                         onToggleDone = { actions.toggleDone(task) },
                         onClick = { actions.edit(task) },
+                        inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
                         // Grouped columns show which status each card is in.
                         showStatus = column.statuses.size > 1,
                         modifier = Modifier.animateItem(),

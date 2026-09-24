@@ -42,7 +42,12 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
                 )
             }
             if (state.signedIn) {
-                OutlinedButton(onClick = sync::signOut, modifier = Modifier.fillMaxWidth()) {
+                // Like the Sync page: no sign-out mid sign-in or mid sync.
+                OutlinedButton(
+                    onClick = sync::signOut,
+                    enabled = state.activity == null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text("Sign out")
                 }
             } else {

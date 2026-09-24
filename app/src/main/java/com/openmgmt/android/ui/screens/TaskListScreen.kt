@@ -38,6 +38,7 @@ private fun filterLabel(status: String?) = status?.let(::statusLabel) ?: "All"
 fun TaskListScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
     var filter by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -87,6 +88,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
                         projectName = projectNames[task.projectId],
                         onToggleDone = { actions.toggleDone(task) },
                         onClick = { actions.edit(task) },
+                        inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
                         showStatus = filter == null,
                         modifier = Modifier.animateItem(),
                     )

@@ -7,6 +7,7 @@ import com.openmgmt.android.data.MainRepository
 import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.TaskEntity
+import com.openmgmt.android.data.defaultProjectOf
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -23,6 +24,11 @@ class MainViewModel(private val repository: MainRepository) : ViewModel() {
         val live = projects.mapTo(HashSet()) { it.id }
         tasks.filter { it.projectId == null || it.projectId in live }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** The Inbox project unassigned tasks are filed in (null until first used). */
+    val defaultProjectId = combine(repository.projects, repository.organizations) { projects, orgs ->
+        defaultProjectOf(projects, orgs)?.id
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Local changes not yet pushed to the sync server. */
     val pendingChangeCount = repository.pendingChangeCount

@@ -58,6 +58,7 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
     val projects by viewModel.projects.collectAsState()
     val organizations by viewModel.organizations.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
 
     var showNewProject by rememberSaveable { mutableStateOf(false) }
@@ -132,6 +133,7 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
                     projectName = projectNames[task.projectId],
                     onToggleDone = { actions.toggleDone(task) },
                     onClick = { actions.edit(task) },
+                    inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
                     modifier = Modifier.animateItem(),
                 )
             }

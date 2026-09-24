@@ -32,6 +32,7 @@ import com.openmgmt.android.ui.components.startOfToday
 fun DailyOpsScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
+    val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
 
     val tomorrow = startOfToday() + 86_400_000
@@ -86,7 +87,7 @@ fun DailyOpsScreen(viewModel: MainViewModel) {
             key = "focus",
             title = "Today's focus",
             tasks = focus,
-            projectNames = projectNames,
+            projectNames = projectNames, defaultProjectId = defaultProjectId,
             actions = actions,
             emptyTitle = "All clear",
             emptyHint = "Nothing is due today. Enjoy the quiet.",
@@ -95,7 +96,7 @@ fun DailyOpsScreen(viewModel: MainViewModel) {
             key = "upcoming",
             title = "Coming up",
             tasks = upcoming,
-            projectNames = projectNames,
+            projectNames = projectNames, defaultProjectId = defaultProjectId,
             actions = actions,
             emptyTitle = "Nothing scheduled",
             emptyHint = "Tasks with due dates will appear here.",

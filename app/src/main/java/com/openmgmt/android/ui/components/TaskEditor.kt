@@ -48,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -100,6 +101,38 @@ fun SnackbarHostState.showUndo(
     }
 }
 
+/**
+ * Saves the open editor (task snapshot + is-new flag) across activity
+ * recreation, e.g. rotation; the sheet's fields are saveable already but
+ * were lost when the sheet itself closed.
+ */
+private val EditingSaver = Saver<Pair<TaskEntity, Boolean>?, ArrayList<Any?>>(
+    save = { editing ->
+        editing?.let { (t, isNew) ->
+            arrayListOf(
+                isNew, t.id, t.title, t.notes, t.status, t.priority, t.dueAt, t.projectId,
+                t.updatedAt, t.createdAt, t.startedAt, t.completedAt, t.remoteJson,
+            )
+        }
+    },
+    restore = { v ->
+        TaskEntity(
+            id = v[1] as String,
+            title = v[2] as String,
+            notes = v[3] as String,
+            status = v[4] as String,
+            priority = v[5] as Int,
+            dueAt = v[6] as Long?,
+            projectId = v[7] as String?,
+            updatedAt = v[8] as Long,
+            createdAt = v[9] as Long,
+            startedAt = v[10] as Long?,
+            completedAt = v[11] as Long?,
+            remoteJson = v[12] as String?,
+        ) to (v[0] as Boolean)
+    },
+)
+
 @Composable
 fun TaskActionsHost(
     viewModel: MainViewModel,
@@ -109,7 +142,7 @@ fun TaskActionsHost(
     val scope = rememberCoroutineScope()
     val projects by viewModel.projects.collectAsState()
     // The task being edited and whether it is new; null when the sheet is closed.
-    var editing by remember { mutableStateOf<Pair<TaskEntity, Boolean>?>(null) }
+    var editing by rememberSaveable(stateSaver = EditingSaver) { mutableStateOf(null) }
 
     val actions = remember(viewModel, snackbarHostState) {
         TaskActions(

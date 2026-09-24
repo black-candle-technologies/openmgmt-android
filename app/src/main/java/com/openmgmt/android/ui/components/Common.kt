@@ -178,6 +178,8 @@ fun TaskCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showStatus: Boolean = true,
+    /** The task is in the default Inbox project (see MainViewModel.defaultProjectId). */
+    inDefaultProject: Boolean = false,
 ) {
     val done = task.status == TaskStatus.DONE
     Card(
@@ -214,10 +216,11 @@ fun TaskCard(
                         if (showStatus) {
                             StatusBadge(task.status, Modifier.align(Alignment.CenterVertically))
                         }
-                        // Skip a project badge that just repeats the status ("Inbox" / "Inbox").
-                        if (projectName != null &&
-                            !(showStatus && projectName.equals(statusLabel(task.status), ignoreCase = true))
-                        ) {
+                        // An Inbox task in the default Inbox project would read "Inbox" twice.
+                        // Matched by project identity, not name, so a user's project called
+                        // "Done" or "Ready" keeps its badge.
+                        val redundant = showStatus && inDefaultProject && task.status == TaskStatus.INBOX
+                        if (projectName != null && !redundant) {
                             Badge(
                                 projectName,
                                 modifier = Modifier

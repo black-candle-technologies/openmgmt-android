@@ -22,6 +22,22 @@ import kotlinx.serialization.json.jsonObject
 private const val DEFAULT_ORGANIZATION_NAME = "Personal"
 private const val DEFAULT_PROJECT_NAME = "Inbox"
 
+/** The live organization unassigned projects are filed under, if it exists yet. */
+fun defaultOrganizationOf(organizations: List<OrganizationEntity>): OrganizationEntity? =
+    organizations.firstOrNull {
+        it.archivedAt == null && it.name.equals(DEFAULT_ORGANIZATION_NAME, ignoreCase = true)
+    }
+
+/** The live project unassigned tasks are filed in, if it exists yet. */
+fun defaultProjectOf(projects: List<ProjectEntity>, organizations: List<OrganizationEntity>): ProjectEntity? {
+    val org = defaultOrganizationOf(organizations) ?: return null
+    return projects.firstOrNull {
+        it.organizationId == org.id && it.archivedAt == null &&
+            it.status != ProjectStatus.ARCHIVED &&
+            it.name.equals(DEFAULT_PROJECT_NAME, ignoreCase = true)
+    }
+}
+
 /**
  * Data access over the Room DAOs. Every local mutation records its sync
  * event in the same transaction (the desktop's append_sync_event), so the
@@ -128,9 +144,7 @@ class MainRepository(private val db: AppDatabase) {
     // every project an organization. ----
 
     private suspend fun ensureDefaultOrganization(): OrganizationEntity {
-        orgsDao.getAll().firstOrNull {
-            it.archivedAt == null && it.name.equals(DEFAULT_ORGANIZATION_NAME, ignoreCase = true)
-        }?.let { return it }
+        defaultOrganizationOf(orgsDao.getAll())?.let { return it }
         val org = OrganizationEntity(name = DEFAULT_ORGANIZATION_NAME)
         orgsDao.upsert(org)
         record(SyncEntityType.ORGANIZATION, org.id, SyncOperation.CREATED, entityPayload(org.toSyncJson()))
@@ -139,11 +153,7 @@ class MainRepository(private val db: AppDatabase) {
 
     private suspend fun ensureDefaultProject(): ProjectEntity {
         val org = ensureDefaultOrganization()
-        projectsDao.getAll().firstOrNull {
-            it.organizationId == org.id && it.archivedAt == null &&
-                it.status != ProjectStatus.ARCHIVED &&
-                it.name.equals(DEFAULT_PROJECT_NAME, ignoreCase = true)
-        }?.let { return it }
+        defaultProjectOf(projectsDao.getAll(), orgsDao.getAll())?.let { return it }
         val project = ProjectEntity(name = DEFAULT_PROJECT_NAME, organizationId = org.id)
         projectsDao.upsert(project)
         record(SyncEntityType.PROJECT, project.id, SyncOperation.CREATED, entityPayload(project.toSyncJson()))
