@@ -4,6 +4,7 @@ import android.app.Application
 import com.openmgmt.android.auth.AuthManager
 import com.openmgmt.android.data.AppDatabase
 import com.openmgmt.android.data.MainRepository
+import com.openmgmt.android.sync.SyncCredentials
 import com.openmgmt.android.sync.SyncManager
 
 class OpenMgmtApp : Application() {
@@ -23,9 +24,9 @@ class OpenMgmtApp : Application() {
         repository = MainRepository(database)
         authManager = AuthManager(this)
         syncManager = SyncManager(
-            context = this,
-            database = database,
+            repository = repository,
             authManager = authManager,
+            credentials = SyncCredentials(this),
         )
     }
 }

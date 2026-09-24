@@ -8,6 +8,8 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -63,9 +65,20 @@ private val LightColors = lightColorScheme(
     onSurface = Ink,
     surfaceVariant = PaperSurface2,
     onSurfaceVariant = InkSoft,
-    surfaceContainerLow = PaperSurface2,
-    outline = PaperLine,
+    secondaryContainer = Color(0xFFDDE8D3),
+    onSecondaryContainer = DeepGreenDark,
+    tertiaryContainer = Color(0xFFE4F3BF),
+    onTertiaryContainer = Color(0xFF2F4A12),
+    surfaceContainerLowest = PaperSurface,
+    surfaceContainerLow = PaperSurface,
+    surfaceContainer = PaperSurface,
+    surfaceContainerHigh = PaperSurface,
+    surfaceContainerHighest = PaperSurface2,
+    outline = Color(0xFFB4BBAE),
     outlineVariant = PaperLine,
+    inverseSurface = Charcoal,
+    inverseOnSurface = Color(0xFFEEF1E9),
+    inversePrimary = Lime,
     error = Danger,
     onError = Color.White,
     errorContainer = DangerSoft,
@@ -78,18 +91,58 @@ private val DarkColors = darkColorScheme(
     primaryContainer = DeepGreen,
     onPrimaryContainer = BoardText,
     secondary = BoardTextMuted,
+    onSecondary = BoardBg,
+    secondaryContainer = Color(0xFF26312A),
+    onSecondaryContainer = Color(0xFFD6E8C0),
+    tertiary = Lime,
+    onTertiary = LimeInk,
+    tertiaryContainer = Color(0xFF2A3517),
+    onTertiaryContainer = Lime,
     background = BoardBg,
     onBackground = BoardText,
     surface = BoardSurface,
     onSurface = BoardText,
     surfaceVariant = BoardSurface2,
     onSurfaceVariant = BoardTextMuted,
-    surfaceContainerLow = BoardSurface2,
-    outline = BoardLine,
+    surfaceContainerLowest = BoardBg,
+    surfaceContainerLow = BoardSurface,
+    surfaceContainer = BoardSurface,
+    surfaceContainerHigh = BoardSurface2,
+    surfaceContainerHighest = Color(0xFF232A24),
+    outline = Color(0xFF4A524B),
     outlineVariant = BoardLine,
+    inverseSurface = BoardText,
+    inverseOnSurface = BoardBg,
+    inversePrimary = DeepGreen,
     error = Color(0xFFE08079),
+    onError = Color(0xFF2A0F0D),
     errorContainer = Color(0xFF3A1F1D),
+    onErrorContainer = Color(0xFFF2B8B3),
 )
+
+/**
+ * Status colors Material's scheme has no slot for: the desktop "warn"
+ * amber used for blocked / waiting work.
+ */
+data class StatusColors(
+    val caution: Color,
+    val cautionContainer: Color,
+    val onCautionContainer: Color,
+)
+
+private val LightStatusColors = StatusColors(
+    caution = Warn,
+    cautionContainer = Color(0xFFF6E4C8),
+    onCautionContainer = Color(0xFF6E420C),
+)
+
+private val DarkStatusColors = StatusColors(
+    caution = Color(0xFFE2A65A),
+    cautionContainer = Color(0xFF3A2C17),
+    onCautionContainer = Color(0xFFEBC18A),
+)
+
+val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
 
 private val OpenMgmtShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
@@ -129,10 +182,14 @@ fun OpenMgmtTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        shapes = OpenMgmtShapes,
-        typography = OpenMgmtTypography,
-        content = content,
-    )
+    CompositionLocalProvider(
+        LocalStatusColors provides if (darkTheme) DarkStatusColors else LightStatusColors,
+    ) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            shapes = OpenMgmtShapes,
+            typography = OpenMgmtTypography,
+            content = content,
+        )
+    }
 }

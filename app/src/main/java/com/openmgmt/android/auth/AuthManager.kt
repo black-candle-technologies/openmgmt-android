@@ -45,8 +45,9 @@ private const val REFRESH_LEEWAY_MILLIS = 5 * 60 * 1000L
  * Tokens live in EncryptedSharedPreferences, never in the app database.
  * The pending PKCE verifier/state is persisted, not just held in memory,
  * so the flow survives the app process being killed while the browser is
- * in the foreground. The access token is only used once: as the Bearer
- * <redacted> device registration. Sync itself runs on the device token.
+ * in the foreground. The access token is only used for device
+ * registration (as its Bearer credential); sync itself runs on the device
+ * token.
  */
 class AuthManager(
     private val context: Context,
