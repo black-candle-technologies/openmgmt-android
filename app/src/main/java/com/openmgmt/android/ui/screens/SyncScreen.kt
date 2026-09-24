@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.ui.SyncViewModel
+import com.openmgmt.android.ui.components.LocalContentGutter
 import com.openmgmt.android.ui.theme.DrawerColors
 import java.time.Instant
 import java.time.ZoneId
@@ -46,7 +47,7 @@ fun SyncScreen(sync: SyncViewModel, pendingChanges: Int) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = LocalContentGutter.current, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         InfoCard {

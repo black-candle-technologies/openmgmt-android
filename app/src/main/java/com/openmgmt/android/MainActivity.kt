@@ -1,10 +1,13 @@
 package com.openmgmt.android
 
 import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.SnackbarHostState
@@ -41,7 +44,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            // Transparent, not the default translucent white/black scrim: with
+            // 3-button navigation (One UI's default) the scrim drew a band that
+            // clashed with the paper background and cut the charcoal drawer off.
+            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // The app paints its own background behind the bar; icon contrast
+            // follows the theme (and the drawer, see AppScaffold).
+            window.isNavigationBarContrastEnforced = false
+        }
         handleOAuthRedirect(intent)
 
         val app = application as OpenMgmtApp

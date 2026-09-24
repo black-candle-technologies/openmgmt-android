@@ -21,9 +21,11 @@ import com.openmgmt.android.data.TaskEntity
 import com.openmgmt.android.data.TaskStatus
 import com.openmgmt.android.ui.MainViewModel
 import com.openmgmt.android.ui.components.EmptyState
+import com.openmgmt.android.ui.components.LocalContentGutter
 import com.openmgmt.android.ui.components.LocalTaskActions
 import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.TaskCard
+import com.openmgmt.android.ui.components.screenPadding
 import com.openmgmt.android.ui.components.statusLabel
 
 /** Filter chips: All, then each status (null = all). */
@@ -67,7 +69,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
         )
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            contentPadding = screenPadding(hasFab = true, top = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (visible.isEmpty()) {
@@ -103,7 +105,7 @@ fun <T> FilterRow(
     onSelect: (T) -> Unit,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(horizontal = LocalContentGutter.current, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(options) { option ->

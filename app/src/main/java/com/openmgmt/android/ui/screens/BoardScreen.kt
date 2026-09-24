@@ -2,7 +2,6 @@ package com.openmgmt.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +20,7 @@ import com.openmgmt.android.ui.components.EmptyState
 import com.openmgmt.android.ui.components.LocalTaskActions
 import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.TaskCard
+import com.openmgmt.android.ui.components.screenPadding
 
 /** A board column groups statuses; new tasks in it get [newStatus]. */
 private class BoardColumn(val key: String, val label: String, val statuses: Set<String>, val newStatus: String)
@@ -57,7 +57,7 @@ fun BoardScreen(viewModel: MainViewModel) {
         val visible = tasks.filter { it.status in column.statuses }.sortedBy { it.dueAt ?: Long.MAX_VALUE }
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            contentPadding = screenPadding(hasFab = true, top = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (visible.isEmpty()) {
