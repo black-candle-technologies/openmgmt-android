@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.BuildConfig
 import com.openmgmt.android.ui.SyncViewModel
+import com.openmgmt.android.ui.components.LocalContentGutter
 import com.openmgmt.android.ui.components.Section
 
 /** Settings: account, sync server, and app info. */
@@ -29,7 +30,7 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = LocalContentGutter.current, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Section("Account") {

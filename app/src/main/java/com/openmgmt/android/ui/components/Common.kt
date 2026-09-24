@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.data.TaskEntity
 import com.openmgmt.android.data.TaskStatus
@@ -57,13 +58,20 @@ import java.time.format.DateTimeFormatter
  * (Page titles and eyebrows live in the top bar; see AppScaffold.)
  */
 
-/** Content padding for a scrolling page; leaves room for a FAB when present. */
-fun screenPadding(hasFab: Boolean = false) = PaddingValues(
-    start = 16.dp,
-    end = 16.dp,
-    top = 12.dp,
-    bottom = if (hasFab) 96.dp else 24.dp,
-)
+/**
+ * Content padding for a scrolling page: the page gutter (wider on wide
+ * windows, see [LocalContentGutter]) and room for a FAB when present.
+ */
+@Composable
+fun screenPadding(hasFab: Boolean = false, top: Dp = 12.dp): PaddingValues {
+    val gutter = LocalContentGutter.current
+    return PaddingValues(
+        start = gutter,
+        end = gutter,
+        top = top,
+        bottom = if (hasFab) 96.dp else 24.dp,
+    )
+}
 
 @Composable
 fun Section(
@@ -126,10 +134,11 @@ fun MetricCard(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            // Two lines, so labels survive large font scales instead of truncating.
             Text(
                 label,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -205,7 +214,10 @@ fun TaskCard(
                         if (showStatus) {
                             StatusBadge(task.status, Modifier.align(Alignment.CenterVertically))
                         }
-                        if (projectName != null) {
+                        // Skip a project badge that just repeats the status ("Inbox" / "Inbox").
+                        if (projectName != null &&
+                            !(showStatus && projectName.equals(statusLabel(task.status), ignoreCase = true))
+                        ) {
                             Badge(
                                 projectName,
                                 modifier = Modifier

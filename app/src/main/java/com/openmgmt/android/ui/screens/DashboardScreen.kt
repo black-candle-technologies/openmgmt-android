@@ -2,10 +2,13 @@ package com.openmgmt.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -80,28 +83,30 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
     ) {
         item(key = "metrics") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Equal-height cards even when a label wraps at large font scales.
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricCard(
-                        "In progress", inProgress.size.toString(), Modifier.weight(1f),
+                        "In progress", inProgress.size.toString(), Modifier.weight(1f).fillMaxHeight(),
                         MetricTone.Accent,
                     ) { onNavigate(Destination.Board) }
                     MetricCard(
-                        "Overdue", overdue.size.toString(), Modifier.weight(1f),
+                        "Overdue", overdue.size.toString(), Modifier.weight(1f).fillMaxHeight(),
                         if (overdue.isEmpty()) MetricTone.Neutral else MetricTone.Danger,
                     ) { onNavigate(Destination.Schedule) }
                     MetricCard(
-                        "Blocked / waiting", blocked.size.toString(), Modifier.weight(1f),
+                        "Blocked / waiting", blocked.size.toString(), Modifier.weight(1f).fillMaxHeight(),
                         if (blocked.isEmpty()) MetricTone.Neutral else MetricTone.Caution,
                     ) { onNavigate(Destination.Board) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricCard("Open tasks", open.size.toString(), Modifier.weight(1f)) {
+                // Equal-height cards even when a label wraps at large font scales.
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetricCard("Open tasks", open.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
                         onNavigate(Destination.Tasks)
                     }
-                    MetricCard("Projects", activeProjects.size.toString(), Modifier.weight(1f)) {
+                    MetricCard("Projects", activeProjects.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
                         onNavigate(Destination.Projects)
                     }
-                    MetricCard("Orgs", organizations.size.toString(), Modifier.weight(1f)) {
+                    MetricCard("Orgs", organizations.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
                         onNavigate(Destination.Organizations)
                     }
                 }

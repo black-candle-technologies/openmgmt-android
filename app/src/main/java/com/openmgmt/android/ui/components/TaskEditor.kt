@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -311,7 +312,14 @@ fun TaskEditorSheet(
             },
             dismissButton = { TextButton(onClick = { pickingDate = false }) { Text("Cancel") } },
         ) {
-            DatePicker(state = pickerState)
+            // On short windows (phones in landscape) the full picker is taller
+            // than the screen and its grid gets squeezed; drop the title and
+            // headline, which only repeat the date selected in the grid.
+            if (LocalConfiguration.current.screenHeightDp < 560) {
+                DatePicker(state = pickerState, title = null, headline = null, showModeToggle = false)
+            } else {
+                DatePicker(state = pickerState)
+            }
         }
     }
 

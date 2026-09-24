@@ -7,6 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -72,6 +80,21 @@ import com.openmgmt.android.ui.nav.NavGroup
 import com.openmgmt.android.ui.theme.DrawerColors
 import kotlinx.coroutines.launch
 
+/**
+ * Insets app chrome must stay clear of: system bars plus the display cutout.
+ * Scaffold/TopAppBar/drawer defaults only cover system bars, so in landscape
+ * a punch-hole camera (e.g. Galaxy S Ultra) overlapped the menu button and
+ * list content, and the FAB slid under a side 3-button navigation bar.
+ */
+@Composable
+fun safeInsets(): WindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+
+/** Readable line length: on wide windows (landscape) content is centered at this width. */
+private val MAX_CONTENT_WIDTH = 720.dp
+
+/** Horizontal page margin; grows on wide windows to center content (see [MAX_CONTENT_WIDTH]). */
+val LocalContentGutter = staticCompositionLocalOf { 16.dp }
+
 /** A screen's primary action, rendered by [AppScaffold] as an extended FAB. */
 class FabSpec(val label: String, val onClick: () -> Unit)
 
@@ -132,6 +155,7 @@ fun AppScaffold(
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier.widthIn(max = 300.dp),
+                windowInsets = safeInsets().only(WindowInsetsSides.Vertical + WindowInsetsSides.Start),
                 drawerContainerColor = DrawerColors.background,
                 drawerContentColor = DrawerColors.onBackground,
                 drawerShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
@@ -149,6 +173,7 @@ fun AppScaffold(
     ) {
         Scaffold(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentWindowInsets = safeInsets(),
             topBar = {
                 TopAppBar(
                     title = {
@@ -193,12 +218,15 @@ fun AppScaffold(
                         scrolledContainerColor = MaterialTheme.colorScheme.surface,
                     ),
                     scrollBehavior = scrollBehavior,
+                    windowInsets = safeInsets().only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 )
             },
             floatingActionButton = {
                 fab.spec?.let { spec ->
                     ExtendedFloatingActionButton(
                         onClick = spec.onClick,
+                        // Scaffold offsets the FAB for bottom insets only.
+                        modifier = Modifier.windowInsetsPadding(safeInsets().only(WindowInsetsSides.Horizontal)),
                         icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                         text = { Text(spec.label) },
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -206,10 +234,19 @@ fun AppScaffold(
                     )
                 }
             },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = {
+                SnackbarHost(
+                    snackbarHostState,
+                    Modifier.windowInsetsPadding(safeInsets().only(WindowInsetsSides.Horizontal)),
+                )
+            },
         ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                CompositionLocalProvider(LocalFabController provides fab) {
+            BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+                val gutter = maxOf(16.dp, (maxWidth - MAX_CONTENT_WIDTH) / 2)
+                CompositionLocalProvider(
+                    LocalFabController provides fab,
+                    LocalContentGutter provides gutter,
+                ) {
                     content()
                 }
             }
@@ -217,7 +254,11 @@ fun AppScaffold(
     }
 }
 
-/** Light status-bar icons over the charcoal drawer; restore the theme's when it closes. */
+/**
+ * Light system-bar icons over the charcoal drawer; restore the theme's when
+ * it closes. The navigation bar matters with 3-button navigation (One UI's
+ * default), whose buttons sit on top of the drawer.
+ */
 @Composable
 private fun DrawerStatusBarIcons(drawerOpen: Boolean) {
     val view = LocalView.current
@@ -225,8 +266,10 @@ private fun DrawerStatusBarIcons(drawerOpen: Boolean) {
     if (view.isInEditMode) return
     LaunchedEffect(drawerOpen, dark) {
         val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
-            !drawerOpen && !dark
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !drawerOpen && !dark
+            isAppearanceLightNavigationBars = !drawerOpen && !dark
+        }
     }
 }
 
