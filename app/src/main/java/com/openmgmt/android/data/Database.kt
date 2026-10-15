@@ -59,6 +59,10 @@ data class TaskEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val startedAt: Long? = null,
     val completedAt: Long? = null,
+    @androidx.room.ColumnInfo(defaultValue = "'none'") val agentState: String = "none",
+    val agentDispatchId: String? = null,
+    val agentPrUrl: String? = null,
+    val agentUpdatedAt: Long? = null,
     /** Last full sync entity; keeps desktop-only fields intact on round trips. */
     val remoteJson: String? = null,
 )
@@ -67,6 +71,9 @@ data class TaskEntity(
 data class ProjectEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
+    val repoOwner: String? = null,
+    val repoName: String? = null,
+    @androidx.room.ColumnInfo(defaultValue = "'main'") val repoBranch: String = "main",
     /** Null only until saved: the repository files org-less projects in Personal. */
     val organizationId: String? = null,
     val status: String = ProjectStatus.ACTIVE,
@@ -258,6 +265,18 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN agentState TEXT NOT NULL DEFAULT 'none'")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN agentDispatchId TEXT")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN agentPrUrl TEXT")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN agentUpdatedAt INTEGER")
+        db.execSQL("ALTER TABLE projects ADD COLUMN repoOwner TEXT")
+        db.execSQL("ALTER TABLE projects ADD COLUMN repoName TEXT")
+        db.execSQL("ALTER TABLE projects ADD COLUMN repoBranch TEXT NOT NULL DEFAULT 'main'")
+    }
+}
+
 @Database(
     entities = [
         TaskEntity::class,
@@ -267,7 +286,7 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         AppliedRemoteEventEntity::class,
         SyncStateEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -287,7 +306,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "openmgmt.db",
                 )
-                    .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                     // v1 predates any shipped build; nothing to preserve.
                     .fallbackToDestructiveMigrationFrom(1)
                     .build()
