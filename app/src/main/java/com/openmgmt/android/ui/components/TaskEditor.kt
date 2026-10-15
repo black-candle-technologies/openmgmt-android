@@ -33,6 +33,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -78,6 +81,7 @@ class TaskActions(
     val edit: (TaskEntity) -> Unit,
     val create: (defaults: TaskEntity) -> Unit,
     val toggleDone: (TaskEntity) -> Unit,
+    val dispatch: (TaskEntity) -> Unit,
 )
 
 val LocalTaskActions = staticCompositionLocalOf<TaskActions> {
@@ -137,15 +141,20 @@ private val EditingSaver = Saver<Pair<TaskEntity, Boolean>?, ArrayList<Any?>>(
 fun TaskActionsHost(
     viewModel: MainViewModel,
     snackbarHostState: SnackbarHostState,
+    onSignIn: () -> Unit,
+    onBindRepo: (String?) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val projects by viewModel.projects.collectAsState()
+    val tasks by viewModel.tasks.collectAsState()
+    var dispatchId by rememberSaveable { mutableStateOf<String?>(null) }
     // The task being edited and whether it is new; null when the sheet is closed.
     var editing by rememberSaveable(stateSaver = EditingSaver) { mutableStateOf(null) }
 
     val actions = remember(viewModel, snackbarHostState) {
         TaskActions(
+            dispatch = { dispatchId = it.id },
             edit = { editing = it to false },
             create = { editing = it to true },
             toggleDone = { task ->
@@ -166,6 +175,14 @@ fun TaskActionsHost(
         content()
     }
 
+    tasks.firstOrNull { it.id == dispatchId }?.let { task ->
+        com.openmgmt.android.dispatch.DispatchSheet(task, projects.find { it.id == task.projectId }, viewModel,
+            onDismiss = { dispatchId = null },
+            onSignIn = { dispatchId = null; onSignIn() },
+            onBindRepo = { dispatchId = null; onBindRepo(task.projectId) },
+            onDispatched = { dispatchId = null; scope.launch { snackbarHostState.showSnackbar("Agent dispatched") } })
+    }
+
     editing?.let { (task, isNew) ->
         TaskEditorSheet(
             initial = task,
@@ -173,6 +190,11 @@ fun TaskActionsHost(
             projects = projects,
             onDismiss = { editing = null },
             onSave = { viewModel.saveTask(it) },
+            onDispatch = { saved -> scope.launch {
+                viewModel.saveTask(saved).join()
+                editing = null
+                dispatchId = saved.id
+            } },
             onDelete = {
                 viewModel.deleteTask(task.id)
                 snackbarHostState.showUndo(scope, "Task deleted") { viewModel.saveTask(task) }
@@ -190,15 +212,18 @@ fun TaskEditorSheet(
     onDismiss: () -> Unit,
     onSave: (TaskEntity) -> Unit,
     onDelete: () -> Unit,
+    onDispatch: (TaskEntity) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var title by rememberSaveable(initial.id) { mutableStateOf(initial.title) }
     var notes by rememberSaveable(initial.id) { mutableStateOf(initial.notes) }
     var status by rememberSaveable(initial.id) { mutableStateOf(initial.status) }
+    var priority by rememberSaveable(initial.id) { mutableStateOf(initial.priority) }
     var dueAt by rememberSaveable(initial.id) { mutableStateOf(initial.dueAt) }
     var projectId by rememberSaveable(initial.id) { mutableStateOf(initial.projectId) }
     var pickingDate by rememberSaveable { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
 
     // Animate the sheet away before removing it from composition.
@@ -218,10 +243,16 @@ fun TaskEditorSheet(
                 .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                if (isNew) "New task" else "Edit task",
-                style = MaterialTheme.typography.titleLarge,
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isNew) "New task" else "Edit task", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (!isNew) Box {
+                    TextButton(onClick = { overflow = true }) { Text("⋮") }
+                    DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                            onClick = { overflow = false; close(onDelete) })
+                    }
+                }
+            }
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -254,6 +285,14 @@ fun TaskEditorSheet(
                 }
             }
 
+            FieldLabel("Priority")
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                (1..5).forEach { value ->
+                    SegmentedButton(selected = priority == value, onClick = { priority = value },
+                        shape = SegmentedButtonDefaults.itemShape(value - 1, 5), icon = {}) { Text("P$value") }
+                }
+            }
+
             FieldLabel("Due")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val today = LocalDate.now()
@@ -267,6 +306,11 @@ fun TaskEditorSheet(
                     selected = dueDate == today.plusDays(1),
                     onClick = { dueAt = startOfDay(today.plusDays(1)) },
                     label = { Text("Tomorrow") },
+                )
+                FilterChip(
+                    selected = dueDate == today.plusDays(7),
+                    onClick = { dueAt = startOfDay(today.plusDays(7)) },
+                    label = { Text("Next week") },
                 )
                 val custom = dueAt != null && dueDate != today && dueDate != today.plusDays(1)
                 FilterChip(
@@ -289,6 +333,11 @@ fun TaskEditorSheet(
                 }
             }
 
+            if (!isNew) TextButton(enabled = title.isNotBlank(), onClick = {
+                onDispatch(initial.copy(title = title.trim(), notes = notes.trim(), status = status,
+                    priority = priority, dueAt = dueAt, projectId = projectId))
+            }) { Text("Dispatch agent") }
+
             FieldLabel("Project")
             ProjectPicker(
                 projects = projects,
@@ -300,11 +349,6 @@ fun TaskEditorSheet(
                 Modifier.fillMaxWidth().padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (!isNew) {
-                    TextButton(
-                        onClick = { close(onDelete) },
-                    ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { close() }) { Text("Cancel") }
                 Spacer(Modifier.size(8.dp))
@@ -315,6 +359,7 @@ fun TaskEditorSheet(
                             title = title.trim(),
                             notes = notes.trim(),
                             status = status,
+                            priority = priority,
                             dueAt = dueAt,
                             projectId = projectId,
                         )

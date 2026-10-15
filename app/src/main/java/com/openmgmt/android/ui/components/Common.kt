@@ -133,7 +133,7 @@ fun MetricCard(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
             // Two lines, so labels survive large font scales instead of truncating.
             Text(
                 label,
@@ -182,6 +182,8 @@ fun TaskCard(
     inDefaultProject: Boolean = false,
 ) {
     val done = task.status == TaskStatus.DONE
+    val actions = LocalTaskActions.current
+    var menu by remember { mutableStateOf(false) }
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -207,6 +209,21 @@ fun TaskCard(
                     color = if (done) MaterialTheme.colorScheme.onSurfaceVariant
                     else MaterialTheme.colorScheme.onSurface,
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PriorityBars(task.priority)
+                    if (task.agentState != "none") {
+                        val (background, foreground) = com.openmgmt.android.ui.theme.agentPillColors(task.agentState)
+                        androidx.compose.material3.AssistChip(onClick = { actions.dispatch(task) },
+                            label = { Text(com.openmgmt.android.dispatch.AgentState.fromWire(task.agentState).label) },
+                            colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(containerColor = background, labelColor = foreground))
+                    }
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text("⋮") }
+                        androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Dispatch agent") }, onClick = { menu = false; actions.dispatch(task) })
+                        }
+                    }
+                }
                 val due = task.dueAt
                 if (projectName != null || showStatus || due != null) {
                     FlowRow(
@@ -243,6 +260,23 @@ fun TaskCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PriorityBars(priority: Int) {
+    val level = when (priority) { 1, 2 -> 3; 3 -> 2; else -> 1 }
+    val color = when (level) {
+        3 -> MaterialTheme.colorScheme.error
+        2 -> LocalStatusColors.current.caution
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(3) { index ->
+            Box(Modifier.background(if (index < level) color else MaterialTheme.colorScheme.outlineVariant)
+                .padding(horizontal = 2.dp, vertical = (3 + index * 2).dp))
+        }
+        Text(" P${priority.coerceIn(1, 5)}", style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
 

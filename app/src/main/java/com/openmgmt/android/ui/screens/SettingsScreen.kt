@@ -12,6 +12,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -23,8 +31,28 @@ import com.openmgmt.android.ui.components.Section
 
 /** Settings: account, sync server, and app info. */
 @Composable
-fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
+fun SettingsScreen(sync: SyncViewModel, viewModel: com.openmgmt.android.ui.MainViewModel, onOpenSync: () -> Unit, onCheckUpdates: () -> Unit) {
     val state by sync.state.collectAsState()
+    val context = LocalContext.current
+    val config = remember { com.openmgmt.android.dispatch.DispatchConfig(context) }
+    var url by remember { mutableStateOf(config.baseUrl) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val prefs = remember { context.getSharedPreferences("board", 0) }
+    var preset by remember { mutableStateOf(prefs.getString("preset", "Balanced")!!) }
+    val scope = rememberCoroutineScope()
+    val snackbar = com.openmgmt.android.ui.components.LocalSnackbarHostState.current
+    val export = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val data = viewModel.exportJson()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    requireNotNull(context.contentResolver.openOutputStream(uri)).bufferedWriter().use { it.write(data) }
+                }
+                snackbar.showSnackbar("Data exported")
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e
+            } catch (_: Exception) { snackbar.showSnackbar("Could not export data") }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -56,6 +84,8 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
                 }
             }
         }
+        OutlinedButton(onClick = onOpenSync, modifier = Modifier.fillMaxWidth()) { Text("Account and server → Sync") }
+        OutlinedButton(onClick = { export.launch("openmgmt-export.json") }, modifier = Modifier.fillMaxWidth()) { Text("Export data") }
         Section("Sync server") {
             InfoCard {
                 StatusRow(label = "Server", value = sync.serverUrl.removePrefix("https://"))
@@ -67,9 +97,24 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
                 )
             }
         }
+        Section("Board ranking preset") {
+            listOf("Balanced", "Focus", "Deadline").forEach { option ->
+                FilterChip(selected = preset == option, onClick = {
+                    preset = option; prefs.edit().putString("preset", option).apply()
+                }, label = { Text(option) })
+            }
+        }
+        Section("Advanced") {
+            OutlinedTextField(url, { url = it }, label = { Text("Dispatch server URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            OutlinedButton(onClick = {
+                try { config.baseUrl = url; error = null } catch (e: IllegalArgumentException) { error = "Use a valid HTTPS URL without credentials" }
+            }) { Text("Save server") }
+        }
         Section("About") {
             InfoCard {
                 StatusRow(label = "Version", value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                OutlinedButton(onClick = onCheckUpdates) { Text("Check for updates") }
             }
         }
     }

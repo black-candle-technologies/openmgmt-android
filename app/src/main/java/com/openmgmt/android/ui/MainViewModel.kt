@@ -34,6 +34,11 @@ class MainViewModel(private val repository: MainRepository) : ViewModel() {
     val pendingChangeCount = repository.pendingChangeCount
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
+    suspend fun exportJson() = repository.exportJson()
+
+    suspend fun updateAgent(id: String, state: String, dispatchId: String, prUrl: String?) =
+        repository.updateAgent(id, state, dispatchId, prUrl)
+
     fun saveTask(task: TaskEntity) = viewModelScope.launch { repository.saveTask(task) }
     fun setTaskStatus(task: TaskEntity, status: String) =
         viewModelScope.launch { repository.setTaskStatus(task, status) }

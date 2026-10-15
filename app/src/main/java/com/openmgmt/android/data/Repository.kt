@@ -57,6 +57,25 @@ class MainRepository(private val db: AppDatabase) {
     val organizations: Flow<List<OrganizationEntity>> = orgsDao.observeAll()
     val pendingChangeCount: Flow<Int> = syncDao.observeUnsyncedCount()
 
+    /** Portable data export only: never includes account or device credentials. */
+    suspend fun exportJson(): String = db.withTransaction {
+        kotlinx.serialization.json.buildJsonObject {
+            put("schema", JsonPrimitive(1))
+            put("tasks", kotlinx.serialization.json.JsonArray(tasksDao.getAll().map { task ->
+                JsonObject(task.toSyncJson() + mapOf(
+                    "agent_state" to JsonPrimitive(task.agentState),
+                    "agent_dispatch_id" to JsonPrimitive(task.agentDispatchId),
+                    "agent_pr_url" to JsonPrimitive(task.agentPrUrl),
+                    "agent_updated_at" to JsonPrimitive(task.agentUpdatedAt)))
+            }))
+            put("projects", kotlinx.serialization.json.JsonArray(projectsDao.getAll().map { project ->
+                JsonObject(project.toSyncJson() + mapOf("repo_owner" to JsonPrimitive(project.repoOwner),
+                    "repo_name" to JsonPrimitive(project.repoName), "repo_branch" to JsonPrimitive(project.repoBranch)))
+            }))
+            put("organizations", kotlinx.serialization.json.JsonArray(orgsDao.getAll().map { it.toSyncJson() }))
+        }.toString()
+    }
+
     // ---- Local mutations ----
 
     suspend fun saveTask(task: TaskEntity) = db.withTransaction {
@@ -66,6 +85,10 @@ class MainRepository(private val db: AppDatabase) {
         val entered = existing == null || existing.status != task.status
         val saved = task.copy(
             projectId = task.projectId ?: ensureDefaultProject().id,
+            agentState = existing?.agentState ?: task.agentState,
+            agentDispatchId = existing?.agentDispatchId ?: task.agentDispatchId,
+            agentPrUrl = existing?.agentPrUrl ?: task.agentPrUrl,
+            agentUpdatedAt = existing?.agentUpdatedAt ?: task.agentUpdatedAt,
             createdAt = existing?.createdAt ?: task.createdAt,
             updatedAt = now,
             startedAt = task.startedAt ?: now.takeIf { entered && task.status == TaskStatus.IN_PROGRESS },
@@ -85,6 +108,12 @@ class MainRepository(private val db: AppDatabase) {
             },
             entityPayload(saved.toSyncJson()),
         )
+    }
+
+    /** Dispatch metadata is local to this client until the sync protocol supports it. */
+    suspend fun updateAgent(id: String, state: String, dispatchId: String, prUrl: String?) = db.withTransaction {
+        tasksDao.get(id)?.let { tasksDao.upsert(it.copy(agentState = state, agentDispatchId = dispatchId,
+            agentPrUrl = prUrl, agentUpdatedAt = System.currentTimeMillis())) }
     }
 
     suspend fun setTaskStatus(task: TaskEntity, status: String) = saveTask(task.copy(status = status))
@@ -283,8 +312,17 @@ class MainRepository(private val db: AppDatabase) {
         require((entity["id"] as? JsonPrimitive)?.contentOrNull == event.entityId) { "entity id mismatch" }
         when (event.entityType) {
             SyncEntityType.ORGANIZATION -> orgsDao.upsert(organizationFromSync(entity))
-            SyncEntityType.PROJECT -> projectsDao.upsert(projectFromSync(entity))
-            SyncEntityType.TASK -> tasksDao.upsert(taskFromSync(entity))
+            SyncEntityType.PROJECT -> {
+                val local = projectsDao.get(event.entityId)
+                projectsDao.upsert(projectFromSync(entity).copy(repoOwner = local?.repoOwner,
+                    repoName = local?.repoName, repoBranch = local?.repoBranch ?: "main"))
+            }
+            SyncEntityType.TASK -> {
+                val local = tasksDao.get(event.entityId)
+                tasksDao.upsert(taskFromSync(entity).copy(agentState = local?.agentState ?: "none",
+                    agentDispatchId = local?.agentDispatchId, agentPrUrl = local?.agentPrUrl,
+                    agentUpdatedAt = local?.agentUpdatedAt))
+            }
             else -> error("unsupported entity type ${event.entityType}")
         }
     }

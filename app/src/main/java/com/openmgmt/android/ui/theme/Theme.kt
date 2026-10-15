@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 
 private val Paper = Color(0xFFF3F2ED)
 private val PaperSurface = Color(0xFFFAFAF7)
-private val PaperSurface2 = Color(0xFFEEF0EA)
+private val PaperSurface2 = Color(0xFFF0EFE8)
 private val PaperLine = Color(0xFFDDE0D7)
 private val Ink = Color(0xFF20251F)
 private val InkSoft = Color(0xFF45503F)
@@ -38,10 +38,10 @@ private val Charcoal = Color(0xFF171C17)
 private val Charcoal2 = Color(0xFF20271F)
 private val Lime = Color(0xFFC9EF6A)
 private val LimeInk = Color(0xFF182017)
-private val Danger = Color(0xFF8D302B)
-private val DangerSoft = Color(0xFFF0D1CE)
-private val Warn = Color(0xFFB5731F)
-private val Ok = Color(0xFF3F7A4D)
+private val Danger = Color(0xFFC03527)
+private val DangerSoft = Color(0xFFF6D9D6)
+private val Warn = Color(0xFFB07C1F)
+private val Ok = Color(0xFF2E7D43)
 
 private val BoardBg = Color(0xFF0D100E)
 private val BoardSurface = Color(0xFF151916)
@@ -52,7 +52,7 @@ private val BoardTextMuted = Color(0xFF8E988F)
 
 private val LightColors = lightColorScheme(
     primary = DeepGreen,
-    onPrimary = Color(0xFFEEF1E9),
+    onPrimary = Color.White,
     primaryContainer = DeepGreenDark,
     onPrimaryContainer = Color(0xFFEEF1E9),
     secondary = InkSoft,
@@ -74,7 +74,7 @@ private val LightColors = lightColorScheme(
     surfaceContainer = PaperSurface,
     surfaceContainerHigh = PaperSurface,
     surfaceContainerHighest = PaperSurface2,
-    outline = Color(0xFFB4BBAE),
+    outline = Color(0xFFC8CDC2),
     outlineVariant = PaperLine,
     inverseSurface = Charcoal,
     inverseOnSurface = Color(0xFFEEF1E9),
@@ -103,7 +103,7 @@ private val DarkColors = darkColorScheme(
     surface = BoardSurface,
     onSurface = BoardText,
     surfaceVariant = BoardSurface2,
-    onSurfaceVariant = BoardTextMuted,
+    onSurfaceVariant = Color(0xFFC3CCC2),
     surfaceContainerLowest = BoardBg,
     surfaceContainerLow = BoardSurface,
     surfaceContainer = BoardSurface,
@@ -114,9 +114,9 @@ private val DarkColors = darkColorScheme(
     inverseSurface = BoardText,
     inverseOnSurface = BoardBg,
     inversePrimary = DeepGreen,
-    error = Color(0xFFE08079),
+    error = Color(0xFFE5484D),
     onError = Color(0xFF2A0F0D),
-    errorContainer = Color(0xFF3A1F1D),
+    errorContainer = Color(0xFF3A1713),
     onErrorContainer = Color(0xFFF2B8B3),
 )
 
@@ -132,12 +132,12 @@ data class StatusColors(
 
 private val LightStatusColors = StatusColors(
     caution = Warn,
-    cautionContainer = Color(0xFFF6E4C8),
+    cautionContainer = Color(0xFFF8ECD2),
     onCautionContainer = Color(0xFF6E420C),
 )
 
 private val DarkStatusColors = StatusColors(
-    caution = Color(0xFFE2A65A),
+    caution = Color(0xFFE0A52E),
     cautionContainer = Color(0xFF3A2C17),
     onCautionContainer = Color(0xFFEBC18A),
 )
@@ -147,8 +147,8 @@ val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
 private val OpenMgmtShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
     small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(9.dp),
-    large = RoundedCornerShape(9.dp),
+    medium = RoundedCornerShape(10.dp),
+    large = RoundedCornerShape(14.dp),
     extraLarge = RoundedCornerShape(16.dp),
 )
 
@@ -169,12 +169,35 @@ private val OpenMgmtTypography = Typography(
 /** Charcoal drawer colors, matching the desktop sidebar. */
 object DrawerColors {
     val background = Charcoal
-    val onBackground = Color(0xFFEEF1E9)
-    val muted = Color(0xFF9AA39A)
+    val onBackground = Color(0xFFE6EBE3)
+    val muted = Color(0xFF8E988F)
     val activeBackground = Charcoal2
     val brandMarkBackground = Lime
     val brandMarkText = LimeInk
     val statusDot = Ok
+}
+
+object UrgencyColors {
+    val overdue = Color(0xFFE5484D)
+    val now = Color(0xFF4D8DF6)
+    val next = Color(0xFF46C46B)
+    val due = Color(0xFFE0A52E)
+    val waiting = Color(0xFFE07B39)
+    val later = Color(0xFF6B8299)
+    val done = Color(0xFF9B7AD6)
+}
+
+@Composable
+fun agentPillColors(state: String): Pair<Color, Color> {
+    val colors = when (state) {
+        "running" -> Color(0xFFDCEAD2) to Color(0xFF294F37)
+        "needs_input" -> Color(0xFFF8ECD2) to Color(0xFF7C5A17)
+        "pr_opened" -> Color(0xFFD9E4F7) to Color(0xFF2F4D8A)
+        "done" -> Color(0xFFE7DDF2) to Color(0xFF5B4390)
+        "failed" -> Color(0xFFF6D9D6) to Color(0xFF8D302B)
+        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    return if (isSystemInDarkTheme() && state != "dispatched") colors.second to colors.first else colors
 }
 
 @Composable

@@ -1,5 +1,13 @@
 package com.openmgmt.android.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.openmgmt.android.ui.components.LocalTaskActions
+import com.openmgmt.android.ui.components.TaskCard
+import com.openmgmt.android.data.metadata
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,8 +78,9 @@ private fun projectStatusLabel(status: String) =
         ?: status.replaceFirstChar { it.uppercase() }
 
 /** Projects: card list with per-project progress and open-task counts. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectsScreen(viewModel: MainViewModel) {
+fun ProjectsScreen(viewModel: MainViewModel, initialProjectId: String? = null) {
     val projects by viewModel.projects.collectAsState()
     val organizations by viewModel.organizations.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
@@ -80,6 +89,11 @@ fun ProjectsScreen(viewModel: MainViewModel) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(initialProjectId) {
+        if (initialProjectId != null) { selectedId = initialProjectId; editingId = initialProjectId }
+    }
+    val actions = LocalTaskActions.current
     ScreenFab("New project") { showNew = true }
 
     // Active work first; the DAO already sorts by name within each group.
@@ -107,9 +121,8 @@ fun ProjectsScreen(viewModel: MainViewModel) {
                     ).joinToString(" · "),
                     badge = projectStatusLabel(project.status),
                     badgeTone = if (project.status == ProjectStatus.ACTIVE) MetricTone.Success else MetricTone.Neutral,
-                    progress = if (projectTasks.isEmpty()) null
-                    else doneCount.toFloat() / projectTasks.size,
-                    onClick = { editingId = project.id },
+                    openCount = projectTasks.size - doneCount,
+                    onClick = { selectedId = project.id },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -124,6 +137,26 @@ fun ProjectsScreen(viewModel: MainViewModel) {
             onDismiss = { showNew = false },
             onConfirm = { viewModel.saveProject(ProjectEntity(name = it)) },
         )
+    }
+    projects.firstOrNull { it.id == selectedId }?.let { project ->
+        ModalBottomSheet(onDismissRequest = { selectedId = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            val projectTasks = tasks.filter { it.projectId == project.id }
+            LazyColumn(contentPadding = screenPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Text(project.name, style = MaterialTheme.typography.headlineSmall)
+                    Text("${projectTasks.count { it.status != TaskStatus.DONE }} open · ${projectTasks.count { it.status == TaskStatus.DONE }} done")
+                    Text(project.metadata("description") ?: "No description")
+                    project.metadata("deadline")?.let { Text("Deadline · $it") }
+                    TextButton(onClick = { editingId = project.id }) {
+                        Text("Repository · ${project.repoOwner?.let { "$it/${project.repoName} · ${project.repoBranch}" } ?: "Not bound"}")
+                    }
+                    TextButton(onClick = { editingId = project.id }) { Text("Edit project") }
+                }
+                items(projectTasks, key = { it.id }) { task ->
+                    TaskCard(task, null, { actions.toggleDone(task) }, { selectedId = null; actions.edit(task) })
+                }
+            }
+        }
     }
     projects.firstOrNull { it.id == editingId }?.let { project ->
         ProjectEditorDialog(
@@ -140,6 +173,7 @@ fun ProjectsScreen(viewModel: MainViewModel) {
 }
 
 /** Organizations: card list with project and open-task counts. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrganizationsScreen(viewModel: MainViewModel) {
     val organizations by viewModel.organizations.collectAsState()
@@ -150,6 +184,8 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    var selectedOrg by rememberSaveable { mutableStateOf<String?>(null) }
+    val actions = LocalTaskActions.current
     ScreenFab("New organization") { showNew = true }
 
     LazyColumn(
@@ -167,8 +203,9 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
                 val openCount = tasks.count { it.projectId in orgProjects && it.status != TaskStatus.DONE }
                 StructureCard(
                     title = org.name,
+                    openCount = openCount,
                     subtitle = "${plural(orgProjects.size, "project")} · ${plural(openCount, "open task")}",
-                    onClick = { editingId = org.id },
+                    onClick = { selectedOrg = org.id },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -183,6 +220,23 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
             onDismiss = { showNew = false },
             onConfirm = { viewModel.saveOrganization(OrganizationEntity(name = it)) },
         )
+    }
+    organizations.firstOrNull { it.id == selectedOrg }?.let { org ->
+        val projectIds = projects.filter { it.organizationId == org.id }.map { it.id }.toSet()
+        val orgTasks = tasks.filter { it.projectId in projectIds }
+        ModalBottomSheet(onDismissRequest = { selectedOrg = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            LazyColumn(contentPadding = screenPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Text(org.name, style = MaterialTheme.typography.headlineSmall)
+                    Text("${orgTasks.count { it.status != TaskStatus.DONE }} open · ${projectIds.size} projects")
+                    TextButton(onClick = { editingId = org.id }) { Text("Edit organization") }
+                }
+                items(orgTasks, key = { it.id }) { task ->
+                    TaskCard(task, projects.find { it.id == task.projectId }?.name,
+                        { actions.toggleDone(task) }, { selectedOrg = null; actions.edit(task) })
+                }
+            }
+        }
     }
     organizations.firstOrNull { it.id == editingId }?.let { org ->
         NameEditorDialog(
@@ -208,7 +262,7 @@ private fun StructureCard(
     modifier: Modifier = Modifier,
     badge: String? = null,
     badgeTone: MetricTone = MetricTone.Neutral,
-    progress: Float? = null,
+    openCount: Int = 0,
 ) {
     Card(
         onClick = onClick,
@@ -241,15 +295,8 @@ private fun StructureCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (progress != null) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    strokeCap = StrokeCap.Round,
-                    drawStopIndicator = {},
-                )
-            }
+            Text("$openCount open", style = MaterialTheme.typography.headlineSmall,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
         }
     }
 }
@@ -267,12 +314,15 @@ private fun ProjectEditorDialog(
     var status by rememberSaveable(project.id) { mutableStateOf(project.status) }
     var orgId by rememberSaveable(project.id) { mutableStateOf(project.organizationId) }
     var orgMenu by remember { mutableStateOf(false) }
+    var repoOwner by rememberSaveable(project.id) { mutableStateOf(project.repoOwner.orEmpty()) }
+    var repoName by rememberSaveable(project.id) { mutableStateOf(project.repoName.orEmpty()) }
+    var repoBranch by rememberSaveable(project.id) { mutableStateOf(project.repoBranch) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit project") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -281,6 +331,11 @@ private fun ProjectEditorDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text("Repository")
+                OutlinedTextField(repoOwner, { repoOwner = it }, label = { Text("Owner") }, singleLine = true)
+                OutlinedTextField(repoName, { repoName = it }, label = { Text("Repository name") }, singleLine = true)
+                OutlinedTextField(repoBranch, { repoBranch = it }, label = { Text("Branch") }, singleLine = true)
+                TextButton(onClick = { repoOwner = ""; repoName = ""; repoBranch = "main" }) { Text("Clear repository") }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PROJECT_STATUSES.forEach { (value, label) ->
                         FilterChip(
@@ -318,9 +373,12 @@ private fun ProjectEditorDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && ((repoOwner.isBlank() && repoName.isBlank()) ||
+                    (repoOwner.trim().matches(Regex("[A-Za-z0-9_.-]+")) && repoName.trim().matches(Regex("[A-Za-z0-9_.-]+")) && repoBranch.isNotBlank())),
                 onClick = {
-                    onSave(project.copy(name = name.trim(), status = status, organizationId = orgId))
+                    onSave(project.copy(name = name.trim(), status = status, organizationId = orgId,
+                        repoOwner = repoOwner.trim().takeIf { it.isNotEmpty() },
+                        repoName = repoName.trim().takeIf { it.isNotEmpty() }, repoBranch = repoBranch.trim().ifEmpty { "main" }))
                     onDismiss()
                 },
             ) { Text("Save") }
