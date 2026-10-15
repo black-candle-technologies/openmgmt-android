@@ -216,6 +216,7 @@ fun TaskEditorSheet(
     var dueAt by rememberSaveable(initial.id) { mutableStateOf(initial.dueAt) }
     var projectId by rememberSaveable(initial.id) { mutableStateOf(initial.projectId) }
     var pickingDate by rememberSaveable { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
 
     // Animate the sheet away before removing it from composition.
@@ -235,10 +236,16 @@ fun TaskEditorSheet(
                 .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                if (isNew) "New task" else "Edit task",
-                style = MaterialTheme.typography.titleLarge,
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isNew) "New task" else "Edit task", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (!isNew) Box {
+                    TextButton(onClick = { overflow = true }) { Text("⋮") }
+                    DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                            onClick = { overflow = false; close(onDelete) })
+                    }
+                }
+            }
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -331,11 +338,6 @@ fun TaskEditorSheet(
                 Modifier.fillMaxWidth().padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (!isNew) {
-                    TextButton(
-                        onClick = { close(onDelete) },
-                    ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { close() }) { Text("Cancel") }
                 Spacer(Modifier.size(8.dp))

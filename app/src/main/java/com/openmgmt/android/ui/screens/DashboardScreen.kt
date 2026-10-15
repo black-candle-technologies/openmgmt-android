@@ -54,6 +54,7 @@ import com.openmgmt.android.ui.nav.Destination
 /** Command center: metrics, needs-attention list, active projects, quick actions. */
 @Composable
 fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit) {
+    com.openmgmt.android.dispatch.RefreshAgentsOnResume(viewModel)
     val tasks by viewModel.tasks.collectAsState()
     val projects by viewModel.projects.collectAsState()
     val organizations by viewModel.organizations.collectAsState()

@@ -211,8 +211,11 @@ fun TaskCard(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PriorityBars(task.priority)
-                    if (task.agentState != "none") TextButton(onClick = { actions.dispatch(task) }) {
-                        Text(com.openmgmt.android.dispatch.AgentState.fromWire(task.agentState).label)
+                    if (task.agentState != "none") {
+                        val (background, foreground) = com.openmgmt.android.ui.theme.agentPillColors(task.agentState)
+                        androidx.compose.material3.AssistChip(onClick = { actions.dispatch(task) },
+                            label = { Text(com.openmgmt.android.dispatch.AgentState.fromWire(task.agentState).label) },
+                            colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(containerColor = background, labelColor = foreground))
                     }
                     Box {
                         TextButton(onClick = { menu = true }) { Text("⋮") }

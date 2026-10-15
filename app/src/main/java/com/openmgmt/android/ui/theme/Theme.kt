@@ -177,6 +177,29 @@ object DrawerColors {
     val statusDot = Ok
 }
 
+object UrgencyColors {
+    val overdue = Color(0xFFE5484D)
+    val now = Color(0xFF4D8DF6)
+    val next = Color(0xFF46C46B)
+    val due = Color(0xFFE0A52E)
+    val waiting = Color(0xFFE07B39)
+    val later = Color(0xFF6B8299)
+    val done = Color(0xFF9B7AD6)
+}
+
+@Composable
+fun agentPillColors(state: String): Pair<Color, Color> {
+    val colors = when (state) {
+        "running" -> Color(0xFFDCEAD2) to Color(0xFF294F37)
+        "needs_input" -> Color(0xFFF8ECD2) to Color(0xFF7C5A17)
+        "pr_opened" -> Color(0xFFD9E4F7) to Color(0xFF2F4D8A)
+        "done" -> Color(0xFFE7DDF2) to Color(0xFF5B4390)
+        "failed" -> Color(0xFFF6D9D6) to Color(0xFF8D302B)
+        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    return if (isSystemInDarkTheme() && state != "dispatched") colors.second to colors.first else colors
+}
+
 @Composable
 fun OpenMgmtTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

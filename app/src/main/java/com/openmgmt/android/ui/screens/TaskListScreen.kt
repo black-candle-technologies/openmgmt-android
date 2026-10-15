@@ -29,23 +29,31 @@ import com.openmgmt.android.ui.components.screenPadding
 import com.openmgmt.android.ui.components.statusLabel
 
 /** Filter chips: All, then each status (null = all). */
-private val TASK_FILTERS: List<String?> = listOf(null) + TaskStatus.selectable
+private val TASK_FILTERS: List<String?> = listOf(null, "today", "overdue", TaskStatus.DONE)
 
 private fun filterLabel(status: String?) = status?.let(::statusLabel) ?: "All"
 
 /** Full task list with filters and a new-task action. */
 @Composable
 fun TaskListScreen(viewModel: MainViewModel) {
+    com.openmgmt.android.dispatch.RefreshAgentsOnResume(viewModel)
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
     val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
     var filter by rememberSaveable { mutableStateOf<String?>(null) }
+    var project by rememberSaveable { mutableStateOf<String?>(null) }
+    fun matches(task: TaskEntity, selected: String?): Boolean = when (selected) {
+        "today" -> task.status != TaskStatus.DONE && task.dueAt?.let { com.openmgmt.android.ui.components.localDate(it) == java.time.LocalDate.now() } == true
+        "overdue" -> com.openmgmt.android.ui.components.isOverdue(task)
+        TaskStatus.DONE -> task.status == TaskStatus.DONE
+        else -> true
+    }
 
     // Stable order (edits and check-offs don't make cards jump): open work
     // before done, then soonest due, then title.
     val visible = tasks
-        .filter { filter == null || it.status == filter }
+        .filter { matches(it, filter) && (project == null || it.projectId == project) }
         .sortedWith(
             compareBy<TaskEntity>(
                 { it.status == TaskStatus.DONE },
@@ -55,7 +63,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
         )
 
     ScreenFab("New task") {
-        actions.create(TaskEntity(title = "", status = filter ?: TaskStatus.INBOX))
+        actions.create(TaskEntity(title = "", projectId = project))
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -63,11 +71,13 @@ fun TaskListScreen(viewModel: MainViewModel) {
             options = TASK_FILTERS,
             selected = filter,
             label = { status ->
-                val count = if (status == null) tasks.size else tasks.count { it.status == status }
+                val count = tasks.count { matches(it, status) }
                 "${filterLabel(status)} $count"
             },
             onSelect = { filter = it },
         )
+        FilterRow(options = listOf<String?>(null) + projectNames.keys, selected = project,
+            label = { it?.let { id -> projectNames[id] } ?: "All projects" }, onSelect = { project = it })
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = screenPadding(hasFab = true, top = 4.dp),
@@ -89,7 +99,7 @@ fun TaskListScreen(viewModel: MainViewModel) {
                         onToggleDone = { actions.toggleDone(task) },
                         onClick = { actions.edit(task) },
                         inDefaultProject = task.projectId != null && task.projectId == defaultProjectId,
-                        showStatus = filter == null,
+                        showStatus = true,
                         modifier = Modifier.animateItem(),
                     )
                 }
