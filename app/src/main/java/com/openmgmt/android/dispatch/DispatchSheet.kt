@@ -11,6 +11,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.openmgmt.android.OpenMgmtApp
 import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.TaskEntity
@@ -27,6 +30,7 @@ private fun JsonElement.field(key: String): String? = ((this as? JsonObject)?.ge
 fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainViewModel,
     onDismiss: () -> Unit, onSignIn: () -> Unit, onBindRepo: () -> Unit, onDispatched: () -> Unit) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val app = context.applicationContext as OpenMgmtApp
     val client = remember { DispatchClient(app.authManager, DispatchConfig(context)) }
     val scope = rememberCoroutineScope()
@@ -57,13 +61,15 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
     LaunchedEffect(task.id, generation) {
         if (!signedIn || !hasRepo || sessionId != null) return@LaunchedEffect
         busy = true
+        uncertain = true
         try {
             // Reconcile first: a successful POST may have lost its response or the app may have died.
             val existing = client.forTask(task.id)
-            val sessions = (existing as? JsonArray) ?: ((existing as? JsonObject)?.get("dispatches") as? JsonArray)
-            val active = sessions?.firstOrNull { it.field("state") in setOf("dispatched", "running", "needs_input", "pr_opened") }
+            val sessions = validatedDispatches(existing)
+            val active = sessions.firstOrNull { it.field("state") in setOf("dispatched", "running", "needs_input", "pr_opened") }
             if (active != null) { update(active); return@LaunchedEffect }
             uncertain = false
+            error = null
             val response = client.models()
             models = (response as? JsonArray)?.toList() ?: (response as? JsonObject)?.get("models")?.jsonArray?.toList().orEmpty()
             model = models.firstOrNull()?.field("id").orEmpty()
@@ -71,16 +77,20 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
             prompt = generated.field("prompt") ?: error("Missing prompt")
             offline = false
         } catch (e: CancellationException) { throw e
-        } catch (e: Exception) { offline = true
+        } catch (e: Exception) {
+            offline = true
+            if (uncertain) error = "Sessions could not be confirmed. Check your session before dispatching."
         } finally { busy = false }
     }
-    LaunchedEffect(sessionId) {
+    LaunchedEffect(sessionId, signedIn, lifecycleOwner) {
         if (sessionId == null || !signedIn) return@LaunchedEffect
-        while (true) {
-            try { update(client.get(sessionId)); error = null
-            } catch (e: CancellationException) { throw e
-            } catch (e: Exception) { error = "Service unavailable. Your local tasks are safe." }
-            delay(15_000)
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                try { update(client.get(sessionId)); error = null
+                } catch (e: CancellationException) { throw e
+                } catch (e: Exception) { error = "Service unavailable. Your local tasks are safe." }
+                delay(15_000)
+            }
         }
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -132,6 +142,7 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
                 Button(enabled = !busy && !offline && !uncertain && hasRepo && model.isNotBlank() && prompt.isNotBlank(), onClick = {
                     scope.launch {
                         busy = true
+                        uncertain = true
                         try {
                             val result = client.dispatch(body())
                             val id = result.field("id") ?: error("Missing dispatch id")

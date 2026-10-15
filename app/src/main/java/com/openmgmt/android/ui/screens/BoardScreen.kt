@@ -44,8 +44,17 @@ fun BoardScreen(viewModel: MainViewModel) {
         ) {
             Urgency.entries.filter { selected == null || it.name == selected }.forEach { bucket ->
                 val visible = groups[bucket].orEmpty().sortedWith(
-                    if (preset == "Focus") compareBy<TaskEntity> { it.priority }.thenBy { it.dueAt ?: Long.MAX_VALUE }
-                    else compareBy<TaskEntity> { it.dueAt ?: Long.MAX_VALUE }.thenBy { it.priority }
+                    when (preset) {
+                        "Focus" -> compareBy<TaskEntity> { it.priority }.thenBy { it.dueAt ?: Long.MAX_VALUE }
+                        "Deadline" -> compareBy<TaskEntity> { it.dueAt ?: Long.MAX_VALUE }.thenBy { it.priority }
+                        // Balanced respects deadline buckets but favors priority in status-driven buckets.
+                        // Deadline instead puts the earliest due task first in every bucket.
+                        else -> if (bucket in setOf(Urgency.OVERDUE, Urgency.NOW, Urgency.DUE_SOON)) {
+                            compareBy<TaskEntity> { it.dueAt ?: Long.MAX_VALUE }.thenBy { it.priority }
+                        } else {
+                            compareBy<TaskEntity> { it.priority }.thenBy { it.dueAt ?: Long.MAX_VALUE }
+                        }
+                    }
                 )
                 item(key = bucket.name) { SectionHeader(bucket.label, visible.size) }
                 items(visible, key = { it.id }) { task ->

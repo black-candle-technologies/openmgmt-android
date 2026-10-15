@@ -87,10 +87,10 @@ class AppUpdater(private val activity: ComponentActivity) {
         activity.lifecycleScope.launch {
             val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true }
             val dialog = AlertDialog.Builder(activity).setTitle("Downloading update…").setView(progress).setCancelable(false).show()
-            val file = File(activity.cacheDir, "updates/openmgmt.apk")
+            var attemptFile: File? = null
             try {
+                val file = newUpdateFile(activity.cacheDir).also { attemptFile = it }
                 withContext(Dispatchers.IO) {
-                    file.parentFile?.mkdirs()
                     require(candidate.url.startsWith("https://"))
                     http.newCall(Request.Builder().url(candidate.url).build()).execute().use { response ->
                         check(response.isSuccessful)
@@ -137,8 +137,8 @@ class AppUpdater(private val activity: ComponentActivity) {
                 }
                 dialog.dismiss()
                 install(file)
-            } catch (e: CancellationException) { file.delete(); throw e
-            } catch (e: Exception) { file.delete(); message("Update could not be verified or installed. Please try again.")
+            } catch (e: CancellationException) { attemptFile?.delete(); throw e
+            } catch (e: Exception) { attemptFile?.delete(); message("Update could not be verified or installed. Please try again.")
             } finally { downloading = false; dialog.dismiss() }
         }
     }
