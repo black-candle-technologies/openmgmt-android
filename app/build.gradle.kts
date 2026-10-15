@@ -14,8 +14,8 @@ android {
         applicationId = "com.openmgmt.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.3.3"
+        versionCode = 8
+        versionName = "2026.10.1"
     }
 
     buildTypes {
