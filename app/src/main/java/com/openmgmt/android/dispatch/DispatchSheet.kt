@@ -20,7 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 
-private fun JsonElement.field(key: String): String? = (this as? JsonObject)?.get(key)?.jsonPrimitive?.contentOrNull
+private fun JsonElement.field(key: String): String? = ((this as? JsonObject)?.get(key) as? JsonPrimitive)?.contentOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +35,7 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
     var model by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var offline by remember { mutableStateOf(false) }
+    var uncertain by rememberSaveable(task.id) { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var generation by remember { mutableIntStateOf(0) }
     val signedIn = app.authManager.isSignedIn()
@@ -57,6 +58,12 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
         if (!signedIn || !hasRepo || sessionId != null) return@LaunchedEffect
         busy = true
         try {
+            // Reconcile first: a successful POST may have lost its response or the app may have died.
+            val existing = client.forTask(task.id)
+            val sessions = (existing as? JsonArray) ?: ((existing as? JsonObject)?.get("dispatches") as? JsonArray)
+            val active = sessions?.firstOrNull { it.field("state") in setOf("dispatched", "running", "needs_input", "pr_opened") }
+            if (active != null) { update(active); return@LaunchedEffect }
+            uncertain = false
             val response = client.models()
             models = (response as? JsonArray)?.toList() ?: (response as? JsonObject)?.get("models")?.jsonArray?.toList().orEmpty()
             model = models.firstOrNull()?.field("id").orEmpty()
@@ -117,12 +124,12 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
                 if (offline) Text("Offline template draft — reconnect to generate and dispatch.")
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(prompt, { prompt = it }, label = { Text("Prompt") }, modifier = Modifier.fillMaxWidth(), minLines = 4, enabled = !busy)
-                TextButton(onClick = { generation++ }, enabled = !busy && hasRepo) { Text("Regenerate") }
+                TextButton(onClick = { generation++ }, enabled = !busy && hasRepo) { Text(if (uncertain) "Check session" else "Regenerate") }
                 models.forEach { entry ->
                     val id = entry.field("id") ?: return@forEach
                     FilterChip(selected = model == id, onClick = { model = id }, label = { Text("${entry.field("provider").orEmpty()} · ${entry.field("model") ?: id}") })
                 }
-                Button(enabled = !busy && !offline && hasRepo && model.isNotBlank() && prompt.isNotBlank(), onClick = {
+                Button(enabled = !busy && !offline && !uncertain && hasRepo && model.isNotBlank() && prompt.isNotBlank(), onClick = {
                     scope.launch {
                         busy = true
                         try {
@@ -131,7 +138,7 @@ fun DispatchSheet(task: TaskEntity, project: ProjectEntity?, viewModel: MainView
                             viewModel.updateAgent(task.id, "dispatched", id, result.field("pr_url"))
                             onDispatched()
                         } catch (e: CancellationException) { throw e
-                        } catch (e: Exception) { error = "Dispatch could not be confirmed. Check your session before retrying." }
+                        } catch (e: Exception) { uncertain = true; error = "Dispatch could not be confirmed. Check your session before retrying." }
                         finally { busy = false }
                     }
                 }) { Text("Dispatch") }

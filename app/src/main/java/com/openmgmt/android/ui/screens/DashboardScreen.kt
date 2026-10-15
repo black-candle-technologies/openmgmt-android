@@ -3,38 +3,27 @@ package com.openmgmt.android.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openmgmt.android.data.metadata
-import com.openmgmt.android.data.OrganizationEntity
-import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.ProjectStatus
 import com.openmgmt.android.data.TaskEntity
 import com.openmgmt.android.data.TaskStatus
@@ -47,24 +36,19 @@ import com.openmgmt.android.ui.components.MetricTone
 import com.openmgmt.android.ui.components.ScreenFab
 import com.openmgmt.android.ui.components.SectionHeader
 import com.openmgmt.android.ui.components.TaskCard
-import com.openmgmt.android.ui.components.TextInputDialog
 import com.openmgmt.android.ui.components.isOverdue
 import com.openmgmt.android.ui.components.screenPadding
 import com.openmgmt.android.ui.nav.Destination
 
-/** Command center: metrics, needs-attention list, active projects, quick actions. */
+/** Calm overview: four metrics, three attention cards, and active projects. */
 @Composable
 fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit) {
     com.openmgmt.android.dispatch.RefreshAgentsOnResume(viewModel)
     val tasks by viewModel.tasks.collectAsState()
     val projects by viewModel.projects.collectAsState()
-    val organizations by viewModel.organizations.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
     val defaultProjectId by viewModel.defaultProjectId.collectAsState()
     val actions = LocalTaskActions.current
-
-    var showNewProject by rememberSaveable { mutableStateOf(false) }
-    var showNewOrg by rememberSaveable { mutableStateOf(false) }
 
     val open = tasks.filter { it.status != TaskStatus.DONE }
     val overdue = open.filter { isOverdue(it) }
@@ -181,39 +165,4 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
 
     }
 
-    if (showNewProject) {
-        TextInputDialog(
-            title = "New project",
-            label = "Project name",
-            confirmLabel = "Create",
-            onDismiss = { showNewProject = false },
-            onConfirm = { viewModel.saveProject(ProjectEntity(name = it)) },
-        )
-    }
-    if (showNewOrg) {
-        TextInputDialog(
-            title = "New organization",
-            label = "Organization name",
-            confirmLabel = "Create",
-            onDismiss = { showNewOrg = false },
-            onConfirm = { viewModel.saveOrganization(OrganizationEntity(name = it)) },
-        )
-    }
-}
-
-@Composable
-private fun QuickAction(label: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-        Text(
-            label,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 6.dp),
-        )
-    }
 }

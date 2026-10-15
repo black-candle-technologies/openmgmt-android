@@ -373,7 +373,8 @@ private fun ProjectEditorDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && ((repoOwner.isBlank() && repoName.isBlank()) ||
+                    (repoOwner.trim().matches(Regex("[A-Za-z0-9_.-]+")) && repoName.trim().matches(Regex("[A-Za-z0-9_.-]+")) && repoBranch.isNotBlank())),
                 onClick = {
                     onSave(project.copy(name = name.trim(), status = status, organizationId = orgId,
                         repoOwner = repoOwner.trim().takeIf { it.isNotEmpty() },

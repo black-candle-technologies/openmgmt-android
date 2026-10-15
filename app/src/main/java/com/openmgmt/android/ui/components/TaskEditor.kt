@@ -33,6 +33,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -283,9 +286,10 @@ fun TaskEditorSheet(
             }
 
             FieldLabel("Priority")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 (1..5).forEach { value ->
-                    FilterChip(selected = priority == value, onClick = { priority = value }, label = { Text("P$value") })
+                    SegmentedButton(selected = priority == value, onClick = { priority = value },
+                        shape = SegmentedButtonDefaults.itemShape(value - 1, 5), icon = {}) { Text("P$value") }
                 }
             }
 
