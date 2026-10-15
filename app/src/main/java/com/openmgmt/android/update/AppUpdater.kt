@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit
 class AppUpdater(private val activity: ComponentActivity) {
     private val prefs = activity.getSharedPreferences("updates", 0)
     private val mutex = Mutex()
+    private var downloading = false
     private val http = OkHttpClient.Builder().callTimeout(5, TimeUnit.MINUTES).build()
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private data class Candidate(val version: String, val url: String, val hash: String, val digest: String?, val code: Long)
@@ -81,6 +82,8 @@ class AppUpdater(private val activity: ComponentActivity) {
     }
 
     private fun download(candidate: Candidate) {
+        if (downloading) return
+        downloading = true
         activity.lifecycleScope.launch {
             val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true }
             val dialog = AlertDialog.Builder(activity).setTitle("Downloading update…").setView(progress).setCancelable(false).show()
@@ -91,7 +94,24 @@ class AppUpdater(private val activity: ComponentActivity) {
                     require(candidate.url.startsWith("https://"))
                     http.newCall(Request.Builder().url(candidate.url).build()).execute().use { response ->
                         check(response.isSuccessful)
-                        requireNotNull(response.body).byteStream().use { input -> file.outputStream().use { input.copyTo(it) } }
+                        val body = requireNotNull(response.body)
+                        val length = body.contentLength()
+                        var total = 0L
+                        var previous = -1
+                        body.byteStream().use { input -> file.outputStream().use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                                total += count
+                                val percent = if (length > 0) ((total * 100) / length).toInt().coerceIn(0, 100) else -1
+                                if (percent != previous) {
+                                    previous = percent
+                                    withContext(Dispatchers.Main) { progress.isIndeterminate = false; progress.progress = percent }
+                                }
+                            }
+                        } }
                     }
                     val sha = MessageDigest.getInstance("SHA-256")
                     file.inputStream().use { input ->
@@ -119,7 +139,7 @@ class AppUpdater(private val activity: ComponentActivity) {
                 install(file)
             } catch (e: CancellationException) { file.delete(); throw e
             } catch (e: Exception) { file.delete(); message("Update could not be verified or installed. Please try again.")
-            } finally { dialog.dismiss() }
+            } finally { downloading = false; dialog.dismiss() }
         }
     }
     private fun install(file: File) {

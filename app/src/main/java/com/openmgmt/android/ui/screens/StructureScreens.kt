@@ -80,7 +80,7 @@ private fun projectStatusLabel(status: String) =
 /** Projects: card list with per-project progress and open-task counts. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectsScreen(viewModel: MainViewModel) {
+fun ProjectsScreen(viewModel: MainViewModel, initialProjectId: String? = null) {
     val projects by viewModel.projects.collectAsState()
     val organizations by viewModel.organizations.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
@@ -90,6 +90,9 @@ fun ProjectsScreen(viewModel: MainViewModel) {
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(initialProjectId) {
+        if (initialProjectId != null) { selectedId = initialProjectId; editingId = initialProjectId }
+    }
     val actions = LocalTaskActions.current
     ScreenFab("New project") { showNew = true }
 
@@ -170,6 +173,7 @@ fun ProjectsScreen(viewModel: MainViewModel) {
 }
 
 /** Organizations: card list with project and open-task counts. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrganizationsScreen(viewModel: MainViewModel) {
     val organizations by viewModel.organizations.collectAsState()
@@ -180,6 +184,8 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    var selectedOrg by rememberSaveable { mutableStateOf<String?>(null) }
+    val actions = LocalTaskActions.current
     ScreenFab("New organization") { showNew = true }
 
     LazyColumn(
@@ -199,7 +205,7 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
                     title = org.name,
                     openCount = openCount,
                     subtitle = "${plural(orgProjects.size, "project")} · ${plural(openCount, "open task")}",
-                    onClick = { editingId = org.id },
+                    onClick = { selectedOrg = org.id },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -214,6 +220,23 @@ fun OrganizationsScreen(viewModel: MainViewModel) {
             onDismiss = { showNew = false },
             onConfirm = { viewModel.saveOrganization(OrganizationEntity(name = it)) },
         )
+    }
+    organizations.firstOrNull { it.id == selectedOrg }?.let { org ->
+        val projectIds = projects.filter { it.organizationId == org.id }.map { it.id }.toSet()
+        val orgTasks = tasks.filter { it.projectId in projectIds }
+        ModalBottomSheet(onDismissRequest = { selectedOrg = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            LazyColumn(contentPadding = screenPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Text(org.name, style = MaterialTheme.typography.headlineSmall)
+                    Text("${orgTasks.count { it.status != TaskStatus.DONE }} open · ${projectIds.size} projects")
+                    TextButton(onClick = { editingId = org.id }) { Text("Edit organization") }
+                }
+                items(orgTasks, key = { it.id }) { task ->
+                    TaskCard(task, projects.find { it.id == task.projectId }?.name,
+                        { actions.toggleDone(task) }, { selectedOrg = null; actions.edit(task) })
+                }
+            }
+        }
     }
     organizations.firstOrNull { it.id == editingId }?.let { org ->
         NameEditorDialog(

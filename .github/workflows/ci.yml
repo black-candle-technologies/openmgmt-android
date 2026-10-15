@@ -41,7 +41,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -73,7 +73,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Run unit tests
-        run: gradle testDebugUnitTest --stacktrace
+        run: ./gradlew testDebugUnitTest --stacktrace
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -114,7 +114,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Run Android lint
-        run: gradle lintDebug --stacktrace
+        run: ./gradlew lintDebug --stacktrace
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -147,6 +147,6 @@ jobs:
           gradle-version: 8.7
 
       - name: Build release APK
-        run: gradle assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk

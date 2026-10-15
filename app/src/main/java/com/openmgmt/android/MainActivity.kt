@@ -74,7 +74,8 @@ class MainActivity : ComponentActivity() {
             OpenMgmtTheme {
                 var route by rememberSaveable { mutableStateOf(Destination.Dashboard.route) }
                 val current = Destination.fromRoute(route)
-                val navigate: (Destination) -> Unit = { route = it.route }
+                var projectFocus by rememberSaveable { mutableStateOf<String?>(null) }
+                val navigate: (Destination) -> Unit = { route = it.route; projectFocus = null }
                 val syncState by sync.state.collectAsState()
                 val snackbarHostState = remember { SnackbarHostState() }
 
@@ -93,13 +94,13 @@ class MainActivity : ComponentActivity() {
                     ) {
                         TaskActionsHost(viewModel, snackbarHostState,
                             onSignIn = { navigate(Destination.Sync) },
-                            onBindRepo = { navigate(Destination.Projects) }) {
+                            onBindRepo = { id -> navigate(Destination.Projects); projectFocus = id }) {
                             when (current) {
                                 Destination.Dashboard -> DashboardScreen(viewModel, onNavigate = navigate)
                                 Destination.DailyOps -> DailyOpsScreen(viewModel)
                                 Destination.Tasks -> TaskListScreen(viewModel)
                                 Destination.Schedule -> ScheduleScreen(viewModel)
-                                Destination.Projects -> ProjectsScreen(viewModel)
+                                Destination.Projects -> ProjectsScreen(viewModel, initialProjectId = projectFocus)
                                 Destination.Organizations -> OrganizationsScreen(viewModel)
                                 Destination.Board -> BoardScreen(viewModel)
                                 Destination.Sync -> SyncScreen(

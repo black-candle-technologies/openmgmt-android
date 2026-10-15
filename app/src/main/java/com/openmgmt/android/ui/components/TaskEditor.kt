@@ -139,7 +139,7 @@ fun TaskActionsHost(
     viewModel: MainViewModel,
     snackbarHostState: SnackbarHostState,
     onSignIn: () -> Unit,
-    onBindRepo: () -> Unit,
+    onBindRepo: (String?) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -176,7 +176,7 @@ fun TaskActionsHost(
         com.openmgmt.android.dispatch.DispatchSheet(task, projects.find { it.id == task.projectId }, viewModel,
             onDismiss = { dispatchId = null },
             onSignIn = { dispatchId = null; onSignIn() },
-            onBindRepo = { dispatchId = null; onBindRepo() },
+            onBindRepo = { dispatchId = null; onBindRepo(task.projectId) },
             onDispatched = { dispatchId = null; scope.launch { snackbarHostState.showSnackbar("Agent dispatched") } })
     }
 
@@ -187,7 +187,11 @@ fun TaskActionsHost(
             projects = projects,
             onDismiss = { editing = null },
             onSave = { viewModel.saveTask(it) },
-            onDispatch = { editing = null; dispatchId = task.id },
+            onDispatch = { saved -> scope.launch {
+                viewModel.saveTask(saved).join()
+                editing = null
+                dispatchId = saved.id
+            } },
             onDelete = {
                 viewModel.deleteTask(task.id)
                 snackbarHostState.showUndo(scope, "Task deleted") { viewModel.saveTask(task) }
@@ -205,7 +209,7 @@ fun TaskEditorSheet(
     onDismiss: () -> Unit,
     onSave: (TaskEntity) -> Unit,
     onDelete: () -> Unit,
-    onDispatch: () -> Unit,
+    onDispatch: (TaskEntity) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -325,7 +329,10 @@ fun TaskEditorSheet(
                 }
             }
 
-            if (!isNew) TextButton(onClick = onDispatch) { Text("Dispatch agent") }
+            if (!isNew) TextButton(enabled = title.isNotBlank(), onClick = {
+                onDispatch(initial.copy(title = title.trim(), notes = notes.trim(), status = status,
+                    priority = priority, dueAt = dueAt, projectId = projectId))
+            }) { Text("Dispatch agent") }
 
             FieldLabel("Project")
             ProjectPicker(

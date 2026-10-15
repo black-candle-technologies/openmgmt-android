@@ -20,7 +20,7 @@ fun RefreshAgentsOnResume(viewModel: MainViewModel) {
     val latest by rememberUpdatedState(tasks)
     val app = context.applicationContext as OpenMgmtApp
     val client = remember { DispatchClient(app.authManager, DispatchConfig(context)) }
-    DisposableEffect(owner, client) {
+    DisposableEffect(owner, client, tasks.map { it.id to it.agentDispatchId }) {
         fun refresh() {
             scope.launch {
                 if (!app.authManager.isSignedIn()) return@launch
