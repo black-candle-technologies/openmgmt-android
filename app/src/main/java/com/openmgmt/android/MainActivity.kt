@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                     pendingChanges = viewModel.pendingChangeCount.collectAsState().value,
                                 )
                                 Destination.Settings -> SettingsScreen(
-                                    sync,
+                                    sync, viewModel,
                                     onOpenSync = { navigate(Destination.Sync) },
                                     onCheckUpdates = { updater.check(manual = true) },
                                 )

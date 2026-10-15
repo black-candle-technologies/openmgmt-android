@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.openmgmt.android.data.metadata
 import com.openmgmt.android.data.OrganizationEntity
 import com.openmgmt.android.data.ProjectEntity
 import com.openmgmt.android.data.ProjectStatus
@@ -167,7 +168,10 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
                             val count = tasks.count {
                                 it.projectId == project.id && it.status != TaskStatus.DONE
                             }
-                            Badge("$count open")
+                            Column {
+                                Badge("$count open")
+                                project.metadata("deadline")?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                            }
                         }
                     }
                 }

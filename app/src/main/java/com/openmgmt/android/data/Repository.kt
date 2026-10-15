@@ -57,6 +57,25 @@ class MainRepository(private val db: AppDatabase) {
     val organizations: Flow<List<OrganizationEntity>> = orgsDao.observeAll()
     val pendingChangeCount: Flow<Int> = syncDao.observeUnsyncedCount()
 
+    /** Portable data export only: never includes account or device credentials. */
+    suspend fun exportJson(): String = db.withTransaction {
+        kotlinx.serialization.json.buildJsonObject {
+            put("schema", JsonPrimitive(1))
+            put("tasks", kotlinx.serialization.json.JsonArray(tasksDao.getAll().map { task ->
+                JsonObject(task.toSyncJson() + mapOf(
+                    "agent_state" to JsonPrimitive(task.agentState),
+                    "agent_dispatch_id" to JsonPrimitive(task.agentDispatchId),
+                    "agent_pr_url" to JsonPrimitive(task.agentPrUrl),
+                    "agent_updated_at" to JsonPrimitive(task.agentUpdatedAt)))
+            }))
+            put("projects", kotlinx.serialization.json.JsonArray(projectsDao.getAll().map { project ->
+                JsonObject(project.toSyncJson() + mapOf("repo_owner" to JsonPrimitive(project.repoOwner),
+                    "repo_name" to JsonPrimitive(project.repoName), "repo_branch" to JsonPrimitive(project.repoBranch)))
+            }))
+            put("organizations", kotlinx.serialization.json.JsonArray(orgsDao.getAll().map { it.toSyncJson() }))
+        }.toString()
+    }
+
     // ---- Local mutations ----
 
     suspend fun saveTask(task: TaskEntity) = db.withTransaction {
