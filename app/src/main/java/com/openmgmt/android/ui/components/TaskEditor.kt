@@ -196,6 +196,7 @@ fun TaskEditorSheet(
     var title by rememberSaveable(initial.id) { mutableStateOf(initial.title) }
     var notes by rememberSaveable(initial.id) { mutableStateOf(initial.notes) }
     var status by rememberSaveable(initial.id) { mutableStateOf(initial.status) }
+    var priority by rememberSaveable(initial.id) { mutableStateOf(initial.priority) }
     var dueAt by rememberSaveable(initial.id) { mutableStateOf(initial.dueAt) }
     var projectId by rememberSaveable(initial.id) { mutableStateOf(initial.projectId) }
     var pickingDate by rememberSaveable { mutableStateOf(false) }
@@ -254,6 +255,13 @@ fun TaskEditorSheet(
                 }
             }
 
+            FieldLabel("Priority")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (1..5).forEach { value ->
+                    FilterChip(selected = priority == value, onClick = { priority = value }, label = { Text("P$value") })
+                }
+            }
+
             FieldLabel("Due")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val today = LocalDate.now()
@@ -267,6 +275,11 @@ fun TaskEditorSheet(
                     selected = dueDate == today.plusDays(1),
                     onClick = { dueAt = startOfDay(today.plusDays(1)) },
                     label = { Text("Tomorrow") },
+                )
+                FilterChip(
+                    selected = dueDate == today.plusDays(7),
+                    onClick = { dueAt = startOfDay(today.plusDays(7)) },
+                    label = { Text("Next week") },
                 )
                 val custom = dueAt != null && dueDate != today && dueDate != today.plusDays(1)
                 FilterChip(
@@ -315,6 +328,7 @@ fun TaskEditorSheet(
                             title = title.trim(),
                             notes = notes.trim(),
                             status = status,
+                            priority = priority,
                             dueAt = dueAt,
                             projectId = projectId,
                         )
