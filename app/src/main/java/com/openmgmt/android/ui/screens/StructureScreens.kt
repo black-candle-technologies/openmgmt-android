@@ -267,6 +267,9 @@ private fun ProjectEditorDialog(
     var status by rememberSaveable(project.id) { mutableStateOf(project.status) }
     var orgId by rememberSaveable(project.id) { mutableStateOf(project.organizationId) }
     var orgMenu by remember { mutableStateOf(false) }
+    var repoOwner by rememberSaveable(project.id) { mutableStateOf(project.repoOwner.orEmpty()) }
+    var repoName by rememberSaveable(project.id) { mutableStateOf(project.repoName.orEmpty()) }
+    var repoBranch by rememberSaveable(project.id) { mutableStateOf(project.repoBranch) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -281,6 +284,11 @@ private fun ProjectEditorDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text("Repository")
+                OutlinedTextField(repoOwner, { repoOwner = it }, label = { Text("Owner") }, singleLine = true)
+                OutlinedTextField(repoName, { repoName = it }, label = { Text("Repository name") }, singleLine = true)
+                OutlinedTextField(repoBranch, { repoBranch = it }, label = { Text("Branch") }, singleLine = true)
+                TextButton(onClick = { repoOwner = ""; repoName = ""; repoBranch = "main" }) { Text("Clear repository") }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PROJECT_STATUSES.forEach { (value, label) ->
                         FilterChip(
@@ -320,7 +328,9 @@ private fun ProjectEditorDialog(
             TextButton(
                 enabled = name.isNotBlank(),
                 onClick = {
-                    onSave(project.copy(name = name.trim(), status = status, organizationId = orgId))
+                    onSave(project.copy(name = name.trim(), status = status, organizationId = orgId,
+                        repoOwner = repoOwner.trim().takeIf { it.isNotEmpty() },
+                        repoName = repoName.trim().takeIf { it.isNotEmpty() }, repoBranch = repoBranch.trim().ifEmpty { "main" }))
                     onDismiss()
                 },
             ) { Text("Save") }

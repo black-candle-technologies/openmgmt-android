@@ -12,6 +12,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -25,6 +31,12 @@ import com.openmgmt.android.ui.components.Section
 @Composable
 fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit, onCheckUpdates: () -> Unit) {
     val state by sync.state.collectAsState()
+    val context = LocalContext.current
+    val config = remember { com.openmgmt.android.dispatch.DispatchConfig(context) }
+    var url by remember { mutableStateOf(config.baseUrl) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val prefs = remember { context.getSharedPreferences("board", 0) }
+    var preset by remember { mutableStateOf(prefs.getString("preset", "Balanced")!!) }
 
     Column(
         modifier = Modifier
@@ -66,6 +78,20 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit, onCheckUpdates: 
                     ok = state.registered,
                 )
             }
+        }
+        Section("Board ranking preset") {
+            listOf("Balanced", "Focus", "Deadline").forEach { option ->
+                FilterChip(selected = preset == option, onClick = {
+                    preset = option; prefs.edit().putString("preset", option).apply()
+                }, label = { Text(option) })
+            }
+        }
+        Section("Advanced") {
+            OutlinedTextField(url, { url = it }, label = { Text("Dispatch server URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            OutlinedButton(onClick = {
+                try { config.baseUrl = url; error = null } catch (e: IllegalArgumentException) { error = "Use a valid HTTPS URL without credentials" }
+            }) { Text("Save server") }
         }
         Section("About") {
             InfoCard {

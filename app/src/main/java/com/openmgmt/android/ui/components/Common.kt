@@ -182,6 +182,8 @@ fun TaskCard(
     inDefaultProject: Boolean = false,
 ) {
     val done = task.status == TaskStatus.DONE
+    val actions = LocalTaskActions.current
+    var menu by remember { mutableStateOf(false) }
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -207,7 +209,18 @@ fun TaskCard(
                     color = if (done) MaterialTheme.colorScheme.onSurfaceVariant
                     else MaterialTheme.colorScheme.onSurface,
                 )
-                PriorityBars(task.priority)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PriorityBars(task.priority)
+                    if (task.agentState != "none") TextButton(onClick = { actions.dispatch(task) }) {
+                        Text(com.openmgmt.android.dispatch.AgentState.fromWire(task.agentState).label)
+                    }
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text("⋮") }
+                        androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            androidx.compose.material3.DropdownMenuItem(text = { Text("Dispatch agent") }, onClick = { menu = false; actions.dispatch(task) })
+                        }
+                    }
+                }
                 val due = task.dueAt
                 if (projectName != null || showStatus || due != null) {
                     FlowRow(

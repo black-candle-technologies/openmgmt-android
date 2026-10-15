@@ -21,6 +21,8 @@ fun BoardScreen(viewModel: MainViewModel) {
     val tasks by viewModel.tasks.collectAsState()
     val projectNames by viewModel.projectNames.collectAsState()
     val actions = LocalTaskActions.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preset = context.getSharedPreferences("board", 0).getString("preset", "Balanced")
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(60_000) } }
@@ -41,7 +43,10 @@ fun BoardScreen(viewModel: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Urgency.entries.filter { selected == null || it.name == selected }.forEach { bucket ->
-                val visible = groups[bucket].orEmpty().sortedWith(compareBy({ it.dueAt ?: Long.MAX_VALUE }, { it.priority }))
+                val visible = groups[bucket].orEmpty().sortedWith(
+                    if (preset == "Focus") compareBy<TaskEntity> { it.priority }.thenBy { it.dueAt ?: Long.MAX_VALUE }
+                    else compareBy<TaskEntity> { it.dueAt ?: Long.MAX_VALUE }.thenBy { it.priority }
+                )
                 item(key = bucket.name) { SectionHeader(bucket.label, visible.size) }
                 items(visible, key = { it.id }) { task ->
                     TaskCard(task, projectNames[task.projectId], { actions.toggleDone(task) }, { actions.edit(task) })

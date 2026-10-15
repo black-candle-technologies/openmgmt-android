@@ -42,6 +42,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
@@ -225,7 +226,7 @@ fun AppScaffold(
                 androidx.compose.material3.NavigationBar {
                     listOf(Destination.Dashboard, Destination.DailyOps, Destination.Tasks, Destination.Board).forEach { page ->
                         val label = if (page == Destination.DailyOps) "Today" else page.title
-                        androidx.compose.material3.NavigationBarItem(
+                        NavigationBarItem(
                             selected = current == page,
                             onClick = { onNavigate(page) },
                             icon = { Text(when (page) {
@@ -237,7 +238,7 @@ fun AppScaffold(
                             label = { Text(label, maxLines = 1) },
                         )
                     }
-                    androidx.compose.material3.NavigationBarItem(
+                    NavigationBarItem(
                         selected = current !in listOf(Destination.Dashboard, Destination.DailyOps, Destination.Tasks, Destination.Board),
                         onClick = { scope.launch { drawerState.open() } },
                         icon = { Icon(Icons.Filled.Menu, null) },

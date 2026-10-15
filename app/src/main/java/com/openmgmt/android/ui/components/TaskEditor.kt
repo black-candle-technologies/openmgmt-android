@@ -78,6 +78,7 @@ class TaskActions(
     val edit: (TaskEntity) -> Unit,
     val create: (defaults: TaskEntity) -> Unit,
     val toggleDone: (TaskEntity) -> Unit,
+    val dispatch: (TaskEntity) -> Unit,
 )
 
 val LocalTaskActions = staticCompositionLocalOf<TaskActions> {
@@ -137,15 +138,20 @@ private val EditingSaver = Saver<Pair<TaskEntity, Boolean>?, ArrayList<Any?>>(
 fun TaskActionsHost(
     viewModel: MainViewModel,
     snackbarHostState: SnackbarHostState,
+    onSignIn: () -> Unit,
+    onBindRepo: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val projects by viewModel.projects.collectAsState()
+    val tasks by viewModel.tasks.collectAsState()
+    var dispatchId by rememberSaveable { mutableStateOf<String?>(null) }
     // The task being edited and whether it is new; null when the sheet is closed.
     var editing by rememberSaveable(stateSaver = EditingSaver) { mutableStateOf(null) }
 
     val actions = remember(viewModel, snackbarHostState) {
         TaskActions(
+            dispatch = { dispatchId = it.id },
             edit = { editing = it to false },
             create = { editing = it to true },
             toggleDone = { task ->
@@ -166,6 +172,14 @@ fun TaskActionsHost(
         content()
     }
 
+    tasks.firstOrNull { it.id == dispatchId }?.let { task ->
+        com.openmgmt.android.dispatch.DispatchSheet(task, projects.find { it.id == task.projectId }, viewModel,
+            onDismiss = { dispatchId = null },
+            onSignIn = { dispatchId = null; onSignIn() },
+            onBindRepo = { dispatchId = null; onBindRepo() },
+            onDispatched = { dispatchId = null; scope.launch { snackbarHostState.showSnackbar("Agent dispatched") } })
+    }
+
     editing?.let { (task, isNew) ->
         TaskEditorSheet(
             initial = task,
@@ -173,6 +187,7 @@ fun TaskActionsHost(
             projects = projects,
             onDismiss = { editing = null },
             onSave = { viewModel.saveTask(it) },
+            onDispatch = { editing = null; dispatchId = task.id },
             onDelete = {
                 viewModel.deleteTask(task.id)
                 snackbarHostState.showUndo(scope, "Task deleted") { viewModel.saveTask(task) }
@@ -190,6 +205,7 @@ fun TaskEditorSheet(
     onDismiss: () -> Unit,
     onSave: (TaskEntity) -> Unit,
     onDelete: () -> Unit,
+    onDispatch: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -301,6 +317,8 @@ fun TaskEditorSheet(
                     )
                 }
             }
+
+            if (!isNew) TextButton(onClick = onDispatch) { Text("Dispatch agent") }
 
             FieldLabel("Project")
             ProjectPicker(

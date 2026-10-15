@@ -91,7 +91,9 @@ class MainActivity : ComponentActivity() {
                         onSync = sync::syncNow,
                         snackbarHostState = snackbarHostState,
                     ) {
-                        TaskActionsHost(viewModel, snackbarHostState) {
+                        TaskActionsHost(viewModel, snackbarHostState,
+                            onSignIn = { navigate(Destination.Sync) },
+                            onBindRepo = { navigate(Destination.Projects) }) {
                             when (current) {
                                 Destination.Dashboard -> DashboardScreen(viewModel, onNavigate = navigate)
                                 Destination.DailyOps -> DailyOpsScreen(viewModel)
