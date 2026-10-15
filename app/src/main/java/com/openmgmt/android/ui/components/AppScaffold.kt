@@ -221,6 +221,30 @@ fun AppScaffold(
                     windowInsets = safeInsets().only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 )
             },
+            bottomBar = {
+                androidx.compose.material3.NavigationBar {
+                    listOf(Destination.Dashboard, Destination.DailyOps, Destination.Tasks, Destination.Board).forEach { page ->
+                        val label = if (page == Destination.DailyOps) "Today" else page.title
+                        androidx.compose.material3.NavigationBarItem(
+                            selected = current == page,
+                            onClick = { onNavigate(page) },
+                            icon = { Text(when (page) {
+                                Destination.Dashboard -> "▦"
+                                Destination.DailyOps -> "◷"
+                                Destination.Tasks -> "✓"
+                                else -> "▤"
+                            }) },
+                            label = { Text(label, maxLines = 1) },
+                        )
+                    }
+                    androidx.compose.material3.NavigationBarItem(
+                        selected = current !in listOf(Destination.Dashboard, Destination.DailyOps, Destination.Tasks, Destination.Board),
+                        onClick = { scope.launch { drawerState.open() } },
+                        icon = { Icon(Icons.Filled.Menu, null) },
+                        label = { Text("More") },
+                    )
+                }
+            },
             floatingActionButton = {
                 fab.spec?.let { spec ->
                     ExtendedFloatingActionButton(
