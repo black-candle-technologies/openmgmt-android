@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
             SyncViewModel.Factory(app),
         )[SyncViewModel::class.java]
         val sync = syncViewModel
+        val updater = com.openmgmt.android.update.AppUpdater(this)
+        lifecycleScope.launch { kotlinx.coroutines.delay(3_000); updater.check() }
 
         setContent {
             OpenMgmtTheme {
@@ -105,6 +107,7 @@ class MainActivity : ComponentActivity() {
                                 Destination.Settings -> SettingsScreen(
                                     sync,
                                     onOpenSync = { navigate(Destination.Sync) },
+                                    onCheckUpdates = { updater.check(manual = true) },
                                 )
                             }
                         }

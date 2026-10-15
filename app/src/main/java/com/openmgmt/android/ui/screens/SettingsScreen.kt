@@ -23,7 +23,7 @@ import com.openmgmt.android.ui.components.Section
 
 /** Settings: account, sync server, and app info. */
 @Composable
-fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
+fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit, onCheckUpdates: () -> Unit) {
     val state by sync.state.collectAsState()
 
     Column(
@@ -70,6 +70,7 @@ fun SettingsScreen(sync: SyncViewModel, onOpenSync: () -> Unit) {
         Section("About") {
             InfoCard {
                 StatusRow(label = "Version", value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                OutlinedButton(onClick = onCheckUpdates) { Text("Check for updates") }
             }
         }
     }
