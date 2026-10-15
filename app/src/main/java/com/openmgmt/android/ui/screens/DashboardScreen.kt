@@ -73,7 +73,7 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
     val attention = (overdue.sortedBy { it.dueAt } + inProgress +
         open.filter { it.dueAt != null }.sortedBy { it.dueAt })
         .distinctBy { it.id }
-        .take(6)
+        .take(3)
 
     ScreenFab("New task") { actions.create(TaskEntity(title = "")) }
 
@@ -94,21 +94,14 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
                         "Overdue", overdue.size.toString(), Modifier.weight(1f).fillMaxHeight(),
                         if (overdue.isEmpty()) MetricTone.Neutral else MetricTone.Danger,
                     ) { onNavigate(Destination.Schedule) }
-                    MetricCard(
-                        "Blocked / waiting", blocked.size.toString(), Modifier.weight(1f).fillMaxHeight(),
-                        if (blocked.isEmpty()) MetricTone.Neutral else MetricTone.Caution,
-                    ) { onNavigate(Destination.Board) }
                 }
                 // Equal-height cards even when a label wraps at large font scales.
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricCard("Open tasks", open.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
-                        onNavigate(Destination.Tasks)
-                    }
-                    MetricCard("Projects", activeProjects.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
-                        onNavigate(Destination.Projects)
-                    }
-                    MetricCard("Orgs", organizations.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
-                        onNavigate(Destination.Organizations)
+                    MetricCard("Due soon", open.count {
+                        it.dueAt != null && !isOverdue(it) && it.dueAt <= System.currentTimeMillis() + 7 * 86_400_000L
+                    }.toString(), Modifier.weight(1f).fillMaxHeight()) { onNavigate(Destination.Schedule) }
+                    MetricCard("Blocked", blocked.size.toString(), Modifier.weight(1f).fillMaxHeight()) {
+                        onNavigate(Destination.Board)
                     }
                 }
             }
@@ -180,15 +173,7 @@ fun DashboardScreen(viewModel: MainViewModel, onNavigate: (Destination) -> Unit)
             }
         }
 
-        item(key = "quick-header") {
-            SectionHeader("Quick actions", modifier = Modifier.padding(top = 12.dp))
-        }
-        item(key = "quick") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                QuickAction("Project", Modifier.weight(1f)) { showNewProject = true }
-                QuickAction("Organization", Modifier.weight(1f)) { showNewOrg = true }
-            }
-        }
+
     }
 
     if (showNewProject) {
